@@ -10,6 +10,7 @@ pub struct VMM {
     vm_fd: VmFd,
     kvm: Kvm,
     guest_memory: GuestMemoryMmap,
+    vcpus: Vec<Vcpu>,
 }
 
 impl VMM {
@@ -21,6 +22,7 @@ impl VMM {
             vm_fd,
             kvm,
             guest_memory: GuestMemoryMmap::default(),
+            vcpus: vec![],
         };
 
         Ok(vmm)
@@ -58,9 +60,104 @@ impl VMM {
 
         Ok(())
     }
-    pub fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
-        self.configure_memory(config.mem_size_mb)?;
-        kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path))?;
+
+    pub fn configure_vcpus(
+        &mut self,
+        num_vcpus: u8,
+        kernel_load: KernelLoaderResult,
+    ) -> Result<()> {
+        mptable::setup_mptable(&self.guest_memory, num_vcpus)
+            .map_err(|e| Error::Vcpu(cpu::Error::Mptable(e)))?;
+
+        let base_cpuid = self
+            .kvm
+            .get_supported_cpuid(KVM_MAX_CPUID_ENTRIES)
+            .map_err(Error::KvmIoctl)?;
+
+        for index in 0..num_vcpus {
+            let vcpu = Vcpu::new(&self.vm_fd, index.into(), Arc::clone(&self.serial))
+                .map_err(Error::Vcpu)?;
+
+            // Set CPUID.
+            let mut vcpu_cpuid = base_cpuid.clone();
+            cpuid::filter_cpuid(
+                &self.kvm,
+                index as usize,
+                num_vcpus as usize,
+                &mut vcpu_cpuid,
+            );
+            vcpu.configure_cpuid(&vcpu_cpuid).map_err(Error::Vcpu)?;
+
+            // Configure MSRs (model specific registers).
+            vcpu.configure_msrs().map_err(Error::Vcpu)?;
+
+            // Configure regs, sregs and fpu.
+            vcpu.configure_regs(kernel_load.kernel_load)
+                .map_err(Error::Vcpu)?;
+            vcpu.configure_sregs(&self.guest_memory)
+                .map_err(Error::Vcpu)?;
+            vcpu.configure_fpu().map_err(Error::Vcpu)?;
+
+            // Configure LAPICs.
+            vcpu.configure_lapic().map_err(Error::Vcpu)?;
+
+            self.vcpus.push(vcpu);
+        }
+
+        Ok(())
+    }
+
+    // Run all virtual CPUs.
+    pub fn run(&mut self) -> Result<()> {
+        for mut vcpu in self.vcpus.drain(..) {
+            println!("Starting vCPU {:?}", vcpu.index);
+            let _ = thread::Builder::new().spawn(move || loop {
+                vcpu.run();
+            });
+        }
+
+        let stdin = io::stdin();
+        let stdin_lock = stdin.lock();
+        stdin_lock
+            .set_raw_mode()
+            .map_err(Error::TerminalConfigure)?;
+        let mut events = vec![epoll::Event::new(epoll::Events::empty(), 0); EPOLL_EVENTS_LEN];
+        let epoll_fd = self.epoll.as_raw_fd();
+
+        // Let's start the STDIN polling thread.
+        loop {
+            let num_events =
+                epoll::wait(epoll_fd, -1, &mut events[..]).map_err(Error::EpollError)?;
+
+            for event in events.iter().take(num_events) {
+                let event_data = event.data as RawFd;
+
+                if let libc::STDIN_FILENO = event_data {
+                    let mut out = [0u8; 64];
+
+                    let count = stdin_lock.read_raw(&mut out).map_err(Error::StdinRead)?;
+
+                    self.serial
+                        .lock()
+                        .unwrap()
+                        .serial
+                        .enqueue_raw_bytes(&out[..count])
+                        .map_err(Error::StdinWrite)?;
+                }
+            }
+        }
+    }
+
+    fn configure(
+        &mut self,
+        num_vcpus: u8,
+        mem_size_mb: u32,
+        kernel_path: &str,
+    ) -> Result<(), Error> {
+        self.configure_memory(mem_size_mb);
+        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(kernel_path))?;
+        self.configure_vcpus(num_vcpus, kernel_load)?;
+
         Ok(())
     }
 }
