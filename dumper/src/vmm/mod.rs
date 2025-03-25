@@ -2,9 +2,12 @@ use std::path::PathBuf;
 
 use kvm_bindings::kvm_userspace_memory_region;
 use kvm_ioctls::{Kvm, VmFd};
+use linux_loader::loader::KernelLoaderResult;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 
 use crate::{common::error::Error, config::vmm::VmmConfig, kernel};
+use crate::cpu::{cpuid, mptable, Vcpu};
+
 
 pub struct VMM {
     vm_fd: VmFd,
@@ -65,7 +68,7 @@ impl VMM {
         &mut self,
         num_vcpus: u8,
         kernel_load: KernelLoaderResult,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         mptable::setup_mptable(&self.guest_memory, num_vcpus)
             .map_err(|e| Error::Vcpu(cpu::Error::Mptable(e)))?;
 
