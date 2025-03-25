@@ -1,13 +1,55 @@
 use std::path::PathBuf;
 
+use std::thread;
+use std::io;
+
 use kvm_bindings::kvm_userspace_memory_region;
 use kvm_ioctls::{Kvm, VmFd};
-use linux_loader::loader::KernelLoaderResult;
+use linux_loader::loader::{self, KernelLoaderResult};
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 
-use crate::{common::error::Error, config::vmm::VmmConfig, kernel};
-use crate::cpu::{cpuid, mptable, Vcpu};
+use crate::config::vmm;
+use crate::kernel;
+use crate::cpu::{self, mptable, Vcpu};
 
+use vmm_sys_util::terminal::Terminal;
+
+
+/// VMM errors.
+pub enum Error {
+    /// Failed to write boot parameters to guest memory.
+    BootConfigure(linux_loader::configurator::Error),
+    /// Error configuring the kernel command line.
+    Cmdline(linux_loader::cmdline::Error),
+    /// Failed to load kernel.
+    KernelLoad(loader::Error),
+    /// Invalid E820 configuration.
+    E820Configuration,
+    /// Highmem start address is past the guest memory end.
+    HimemStartPastMemEnd,
+    /// I/O error.
+    IO(io::Error),
+    /// Error issuing an ioctl to KVM.
+    KvmIoctl(kvm_ioctls::Error),
+    /// vCPU errors.
+    Vcpu(cpu::Error),
+    /// Memory error.
+    Memory(vm_memory::Error),
+    /// Serial creation error
+    SerialCreation(io::Error),
+    /// IRQ registration error
+    IrqRegister(io::Error),
+    /// epoll creation error
+    EpollError(io::Error),
+    /// STDIN read error
+    StdinRead(kvm_ioctls::Error),
+    /// STDIN write error
+    StdinWrite(vm_superio::serial::Error<io::Error>),
+    /// Terminal configuration error
+    TerminalConfigure(kvm_ioctls::Error),
+    /// Console configuration error
+    ConsoleError(io::Error),
+}
 
 pub struct VMM {
     vm_fd: VmFd,
@@ -72,24 +114,9 @@ impl VMM {
         mptable::setup_mptable(&self.guest_memory, num_vcpus)
             .map_err(|e| Error::Vcpu(cpu::Error::Mptable(e)))?;
 
-        let base_cpuid = self
-            .kvm
-            .get_supported_cpuid(KVM_MAX_CPUID_ENTRIES)
-            .map_err(Error::KvmIoctl)?;
-
         for index in 0..num_vcpus {
-            let vcpu = Vcpu::new(&self.vm_fd, index.into(), Arc::clone(&self.serial))
+            let vcpu = Vcpu::new(&self.vm_fd, index.into())
                 .map_err(Error::Vcpu)?;
-
-            // Set CPUID.
-            let mut vcpu_cpuid = base_cpuid.clone();
-            cpuid::filter_cpuid(
-                &self.kvm,
-                index as usize,
-                num_vcpus as usize,
-                &mut vcpu_cpuid,
-            );
-            vcpu.configure_cpuid(&vcpu_cpuid).map_err(Error::Vcpu)?;
 
             // Configure MSRs (model specific registers).
             vcpu.configure_msrs().map_err(Error::Vcpu)?;
@@ -111,7 +138,7 @@ impl VMM {
     }
 
     // Run all virtual CPUs.
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<(), Error> {
         for mut vcpu in self.vcpus.drain(..) {
             println!("Starting vCPU {:?}", vcpu.index);
             let _ = thread::Builder::new().spawn(move || loop {
@@ -119,47 +146,14 @@ impl VMM {
             });
         }
 
-        let stdin = io::stdin();
-        let stdin_lock = stdin.lock();
-        stdin_lock
-            .set_raw_mode()
-            .map_err(Error::TerminalConfigure)?;
-        let mut events = vec![epoll::Event::new(epoll::Events::empty(), 0); EPOLL_EVENTS_LEN];
-        let epoll_fd = self.epoll.as_raw_fd();
-
-        // Let's start the STDIN polling thread.
-        loop {
-            let num_events =
-                epoll::wait(epoll_fd, -1, &mut events[..]).map_err(Error::EpollError)?;
-
-            for event in events.iter().take(num_events) {
-                let event_data = event.data as RawFd;
-
-                if let libc::STDIN_FILENO = event_data {
-                    let mut out = [0u8; 64];
-
-                    let count = stdin_lock.read_raw(&mut out).map_err(Error::StdinRead)?;
-
-                    self.serial
-                        .lock()
-                        .unwrap()
-                        .serial
-                        .enqueue_raw_bytes(&out[..count])
-                        .map_err(Error::StdinWrite)?;
-                }
-            }
-        }
+        Ok(())
     }
 
-    fn configure(
-        &mut self,
-        num_vcpus: u8,
-        mem_size_mb: u32,
-        kernel_path: &str,
-    ) -> Result<(), Error> {
-        self.configure_memory(mem_size_mb);
-        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(kernel_path))?;
-        self.configure_vcpus(num_vcpus, kernel_load)?;
+    pub fn configure(&mut self, num_vcpus: u8, mem_size_mb: u32, kernel_path: &str, console: Option<String>) -> Result<(), Error> {
+        self.configure_memory(mem_size_mb).map_err(Error::Memory)?;
+        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(kernel_path))
+            .map_err(Error::KernelLoad)?;
+        self.configure_vcpus(num_vcpus, kernel_load).map_err(Error::Vcpu)?;
 
         Ok(())
     }
