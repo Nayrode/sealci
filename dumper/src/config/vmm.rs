@@ -9,14 +9,18 @@ pub struct VmmConfig {
 
     #[arg(long, help = "Path to the kernel image")]
     pub kernel_path: String,
+    
+    #[arg(long, default_value = "1", help = "Number of virtual CPUs")]
+    pub num_vcpus: u8,
 }
 
 
 impl VmmConfig {
-    pub fn new(mem_size_mb: u32, kernel_path: String) -> Self {
+    pub fn new(mem_size_mb: u32, kernel_path: String, num_vcpus: u8) -> Self {
         Self {
             mem_size_mb,
             kernel_path,
+            num_vcpus,
         }
     }
 }

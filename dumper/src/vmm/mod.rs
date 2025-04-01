@@ -1,55 +1,16 @@
 use std::path::PathBuf;
 
 use std::thread;
-use std::io;
 
 use kvm_bindings::kvm_userspace_memory_region;
 use kvm_ioctls::{Kvm, VmFd};
-use linux_loader::loader::{self, KernelLoaderResult};
+use linux_loader::loader::KernelLoaderResult;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 
-use crate::config::vmm;
-use crate::kernel;
+use crate::common::error::Error;
+use crate::config::vmm::VmmConfig;
 use crate::cpu::{self, mptable, Vcpu};
-
-use vmm_sys_util::terminal::Terminal;
-
-
-/// VMM errors.
-pub enum Error {
-    /// Failed to write boot parameters to guest memory.
-    BootConfigure(linux_loader::configurator::Error),
-    /// Error configuring the kernel command line.
-    Cmdline(linux_loader::cmdline::Error),
-    /// Failed to load kernel.
-    KernelLoad(loader::Error),
-    /// Invalid E820 configuration.
-    E820Configuration,
-    /// Highmem start address is past the guest memory end.
-    HimemStartPastMemEnd,
-    /// I/O error.
-    IO(io::Error),
-    /// Error issuing an ioctl to KVM.
-    KvmIoctl(kvm_ioctls::Error),
-    /// vCPU errors.
-    Vcpu(cpu::Error),
-    /// Memory error.
-    Memory(vm_memory::Error),
-    /// Serial creation error
-    SerialCreation(io::Error),
-    /// IRQ registration error
-    IrqRegister(io::Error),
-    /// epoll creation error
-    EpollError(io::Error),
-    /// STDIN read error
-    StdinRead(kvm_ioctls::Error),
-    /// STDIN write error
-    StdinWrite(vm_superio::serial::Error<io::Error>),
-    /// Terminal configuration error
-    TerminalConfigure(kvm_ioctls::Error),
-    /// Console configuration error
-    ConsoleError(io::Error),
-}
+use crate::kernel;
 
 pub struct VMM {
     vm_fd: VmFd,
@@ -84,7 +45,7 @@ impl VMM {
         let guest_memory = GuestMemoryMmap::from_ranges(&mem_regions).map_err(Error::Memory)?;
 
         // For each memory region in guest_memory:
-        // 1. Create a KVM memory region mapping the memory region guest physical address to the host virtual address.
+        // 1. Create a KVM memory region mapping the memory region guest lphysical address to the host virtual address.
         // 2. Register the KVM memory region with KVM. EPTs are created then.
         for (index, region) in guest_memory.iter().enumerate() {
             let kvm_memory_region = kvm_userspace_memory_region {
@@ -95,7 +56,7 @@ impl VMM {
                 userspace_addr: guest_memory.get_host_address(region.start_addr()).unwrap() as u64,
                 flags: 0,
             };
-
+            
             // Register the KVM memory region with KVM.
             unsafe { self.vm_fd.set_user_memory_region(kvm_memory_region) }
                 .map_err(Error::KvmIoctl)?;
@@ -115,12 +76,10 @@ impl VMM {
             .map_err(|e| Error::Vcpu(cpu::Error::Mptable(e)))?;
 
         for index in 0..num_vcpus {
-            let vcpu = Vcpu::new(&self.vm_fd, index.into())
-                .map_err(Error::Vcpu)?;
+            let vcpu = Vcpu::new(&self.vm_fd, index.into()).map_err(Error::Vcpu)?;
 
             // Configure MSRs (model specific registers).
             vcpu.configure_msrs().map_err(Error::Vcpu)?;
-
             // Configure regs, sregs and fpu.
             vcpu.configure_regs(kernel_load.kernel_load)
                 .map_err(Error::Vcpu)?;
@@ -130,7 +89,6 @@ impl VMM {
 
             // Configure LAPICs.
             vcpu.configure_lapic().map_err(Error::Vcpu)?;
-
             self.vcpus.push(vcpu);
         }
 
@@ -149,12 +107,13 @@ impl VMM {
         Ok(())
     }
 
-    pub fn configure(&mut self, num_vcpus: u8, mem_size_mb: u32, kernel_path: &str, console: Option<String>) -> Result<(), Error> {
-        self.configure_memory(mem_size_mb).map_err(Error::Memory)?;
-        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(kernel_path))
-            .map_err(Error::KernelLoad)?;
-        self.configure_vcpus(num_vcpus, kernel_load).map_err(Error::Vcpu)?;
-
+    pub fn configure(
+        &mut self,
+        config: VmmConfig
+    ) -> Result<(), Error> {
+        self.configure_memory(config.mem_size_mb)?;
+        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path))?;
+        self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
 }
