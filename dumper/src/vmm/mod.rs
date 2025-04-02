@@ -1,15 +1,22 @@
 use std::path::PathBuf;
 
+use std::thread;
+
 use kvm_bindings::kvm_userspace_memory_region;
 use kvm_ioctls::{Kvm, VmFd};
+use linux_loader::loader::KernelLoaderResult;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 
-use crate::{common::error::Error, config::vmm::VmmConfig, kernel};
+use crate::common::error::Error;
+use crate::config::vmm::VmmConfig;
+use crate::cpu::{self, mptable, Vcpu};
+use crate::kernel;
 
 pub struct VMM {
     vm_fd: VmFd,
     kvm: Kvm,
     guest_memory: GuestMemoryMmap,
+    vcpus: Vec<Vcpu>,
 }
 
 impl VMM {
@@ -21,6 +28,7 @@ impl VMM {
             vm_fd,
             kvm,
             guest_memory: GuestMemoryMmap::default(),
+            vcpus: vec![],
         };
 
         Ok(vmm)
@@ -37,7 +45,7 @@ impl VMM {
         let guest_memory = GuestMemoryMmap::from_ranges(&mem_regions).map_err(Error::Memory)?;
 
         // For each memory region in guest_memory:
-        // 1. Create a KVM memory region mapping the memory region guest physical address to the host virtual address.
+        // 1. Create a KVM memory region mapping the memory region guest lphysical address to the host virtual address.
         // 2. Register the KVM memory region with KVM. EPTs are created then.
         for (index, region) in guest_memory.iter().enumerate() {
             let kvm_memory_region = kvm_userspace_memory_region {
@@ -48,7 +56,7 @@ impl VMM {
                 userspace_addr: guest_memory.get_host_address(region.start_addr()).unwrap() as u64,
                 flags: 0,
             };
-
+            
             // Register the KVM memory region with KVM.
             unsafe { self.vm_fd.set_user_memory_region(kvm_memory_region) }
                 .map_err(Error::KvmIoctl)?;
@@ -58,9 +66,54 @@ impl VMM {
 
         Ok(())
     }
-    pub fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
+
+    pub fn configure_vcpus(
+        &mut self,
+        num_vcpus: u8,
+        kernel_load: KernelLoaderResult,
+    ) -> Result<(), Error> {
+        mptable::setup_mptable(&self.guest_memory, num_vcpus)
+            .map_err(|e| Error::Vcpu(cpu::Error::Mptable(e)))?;
+
+        for index in 0..num_vcpus {
+            let vcpu = Vcpu::new(&self.vm_fd, index.into()).map_err(Error::Vcpu)?;
+
+            // Configure MSRs (model specific registers).
+            vcpu.configure_msrs().map_err(Error::Vcpu)?;
+            // Configure regs, sregs and fpu.
+            vcpu.configure_regs(kernel_load.kernel_load)
+                .map_err(Error::Vcpu)?;
+            vcpu.configure_sregs(&self.guest_memory)
+                .map_err(Error::Vcpu)?;
+            vcpu.configure_fpu().map_err(Error::Vcpu)?;
+
+            // Configure LAPICs.
+            vcpu.configure_lapic().map_err(Error::Vcpu)?;
+            self.vcpus.push(vcpu);
+        }
+
+        Ok(())
+    }
+
+    // Run all virtual CPUs.
+    pub fn run(&mut self) -> Result<(), Error> {
+        for mut vcpu in self.vcpus.drain(..) {
+            println!("Starting vCPU {:?}", vcpu.index);
+            let _ = thread::Builder::new().spawn(move || loop {
+                vcpu.run();
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn configure(
+        &mut self,
+        config: VmmConfig
+    ) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
-        kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path))?;
+        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path))?;
+        self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
 }

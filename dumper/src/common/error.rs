@@ -4,6 +4,8 @@ use std::io;
 
 use linux_loader::loader;
 
+use crate::cpu;
+
 #[derive(Debug)]
 pub enum Error {
     /// Failed to write boot parameters to guest memory.
@@ -21,7 +23,7 @@ pub enum Error {
     /// Error issuing an ioctl to KVM.
     KvmIoctl(kvm_ioctls::Error),
     /// vCPU errors.
-    // Vcpu(cpu::Error),
+    Vcpu(cpu::Error),
     /// Memory error.
     Memory(vm_memory::Error),
     /// Serial creation error
@@ -46,8 +48,8 @@ impl fmt::Display for Error {
             Error::KernelLoad(e) => write!(f, "Failed to load kernel: {}", e),
             Error::E820Configuration => write!(f, "Invalid E820 configuration"),
             Error::HimemStartPastMemEnd => {
-                write!(f, "Highmem start address is past the guest memory end")
-            }
+                        write!(f, "Highmem start address is past the guest memory end")
+                    }
             Error::IO(e) => write!(f, "I/O error: {}", e),
             Error::KvmIoctl(e) => write!(f, "Error issuing an ioctl to KVM: {}", e),
             Error::Memory(e) => write!(f, "Memory error: {}", e),
@@ -57,6 +59,7 @@ impl fmt::Display for Error {
             Error::StdinRead(e) => write!(f, "STDIN read error: {}", e),
             Error::StdinWrite(_) => write!(f, "STDIN write error"),
             Error::TerminalConfigure(e) => write!(f, "Terminal configuration error: {}", e),
+            Error::Vcpu(_) => write!(f, "Vcpu error"),
         }
     }
 }

@@ -8,5 +8,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = VmmConfig::parse();
     let mut vmm = VMM::new()?;
     vmm.configure(config)?;
+    vmm.run()?;
     Ok(())
 }
