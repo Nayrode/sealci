@@ -10,11 +10,10 @@ use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::KernelLoaderResult;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 
-use crate::common::error::Error;
+use crate::{common::error::Error, devices::{epoll::EpollContext, serial::DumperSerial}};
 use crate::config::vmm::VmmConfig;
 use crate::cpu::{self, mptable, Vcpu};
 use crate::kernel;
-use crate::{common::error::Error, config::vmm::VmmConfig, devices::{epoll::EpollContext, serial::DumperSerial}, kernel};
 
 pub struct VMM {
     vm_fd: VmFd,
@@ -44,6 +43,7 @@ impl VMM {
             guest_memory,
             serial,
             epoll,
+            vcpus: vec![],
         };
 
         Ok(vmm)
@@ -128,6 +128,7 @@ impl VMM {
     ) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path))?;
+        self.configure_io()?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
