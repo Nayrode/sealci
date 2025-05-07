@@ -17,5 +17,6 @@ vmm-sys-util = "0.12.1"
 event-manager = { version = "0.4.0", features = ["remote_endpoint"] }
 virtio-device = { git = "https://github.com/rust-vmm/vm-virtio.git"}
 virtio-queue = { git = "https://github.com/rust-vmm/vm-virtio.git"}
+virtio-bindings = "0.2.5"
 vm-device = "0.1.0"
 log = "0.4.27"

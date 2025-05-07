@@ -191,7 +191,6 @@ impl VMM {
 
     pub async fn configure_net_device(
         &mut self,
-        cmdline_extra_parameters: &mut Vec<String>,
     ) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
         let range = if let Some(allocator) = &self.address_allocator {
@@ -277,6 +276,8 @@ impl VMM {
 
     pub fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
+        self.configure_allocators(config.mem_size_mb)?;
+        self.configure_net_device()?;
         let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path), &self.cmdline)?;
         self.configure_io()?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
