@@ -38,6 +38,8 @@ pub enum Error {
     StdinWrite(vm_superio::serial::Error<io::Error>),
     /// Terminal configuration error
     TerminalConfigure(kvm_ioctls::Error),
+    /// Virtio device error
+    Virtio(String),
 }
 
 impl fmt::Display for Error {
@@ -60,6 +62,7 @@ impl fmt::Display for Error {
             Error::StdinWrite(_) => write!(f, "STDIN write error"),
             Error::TerminalConfigure(e) => write!(f, "Terminal configuration error: {}", e),
             Error::Vcpu(_) => write!(f, "Vcpu error"),
+            Error::Virtio(e) => write!(f, "Virtio device error: {}", e),
         }
     }
 }
@@ -79,6 +82,7 @@ impl StdError for Error {
             Error::StdinRead(e) => Some(e),
             Error::StdinWrite(_) => None,
             Error::TerminalConfigure(e) => Some(e),
+            Error::Virtio(_) => None,
             _ => None,
         }
     }
