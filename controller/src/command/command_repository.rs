@@ -10,11 +10,11 @@ pub struct CommandDTO {
 }
 
 pub struct CommandRepository {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 impl CommandRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
@@ -29,7 +29,7 @@ impl CommandRepository {
             action_id,
             command
         )
-        .fetch_one(self.pool.as_ref())
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(CommandDTO {
@@ -46,7 +46,7 @@ impl CommandRepository {
             r#"SELECT id, action_id, command FROM commands WHERE action_id=$1 ORDER BY id"#,
             action_id
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
         Ok(rows.iter().map(|row| row.command.clone()).collect())

@@ -55,8 +55,8 @@ pub struct ActionService {
 }
 
 impl ActionService {
-    pub fn new(pool: Arc<PgPool>, command_service: Arc<CommandService>) -> Self {
-        let repository = Arc::new(ActionRepository::new(pool.clone()));
+    pub fn new(pool: PgPool, command_service: Arc<CommandService>) -> Self {
+        let repository = Arc::new(ActionRepository::new(pool));
         Self {
             repository,
             command_service,

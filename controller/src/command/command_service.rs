@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use sqlx::PgPool;
 
 use super::command_repository::CommandRepository;
@@ -9,7 +7,7 @@ pub struct CommandService {
 }
 
 impl CommandService {
-    pub fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self {
             repository: CommandRepository::new(pool),
         }

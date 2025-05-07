@@ -27,7 +27,7 @@ struct PipelineQueryParams {
     verbose: Option<bool>,
 }
 
-#[get("/pipeline")]
+#[get("/pipelines")]
 pub async fn get_pipelines(
     pipeline_service: web::Data<Arc<PipelineService>>,
     query: web::Query<PipelineQueryParams>,

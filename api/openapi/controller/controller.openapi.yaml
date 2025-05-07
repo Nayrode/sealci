@@ -83,7 +83,7 @@ paths:
                   description: All pipelines belonging to the user/project
                 title: pipelines
       security: []
-  /pipeline/{id}:
+  /pipelines/{id}:
     get:
       summary: Get a pipeline status
       deprecated: false

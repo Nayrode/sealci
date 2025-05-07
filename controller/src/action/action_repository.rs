@@ -53,11 +53,11 @@ impl Action {
 }
 
 pub struct ActionRepository {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 impl ActionRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
@@ -79,7 +79,7 @@ impl ActionRepository {
             &r#type.to_string(),
             status
         )
-        .fetch_one(self.pool.as_ref())
+        .fetch_one(&self.pool)
         .await
     }
 
@@ -90,7 +90,7 @@ impl ActionRepository {
             r#"SELECT * FROM actions WHERE id = $1 ORDER BY id"#,
             id
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&self.pool)
         .await
     }
 
@@ -100,7 +100,7 @@ impl ActionRepository {
             status,
             id
         )
-        .execute(&*self.pool)
+        .execute(&self.pool)
         .await?;
 
         Ok(())
@@ -116,7 +116,7 @@ impl ActionRepository {
             r#"SELECT * FROM actions WHERE pipeline_id = $1 ORDER BY id"#,
             pipeline_id
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&self.pool)
         .await
     }
 }

@@ -36,7 +36,7 @@ impl PipelineService {
     pub fn new(
         client: Arc<SchedulerService>,
         parser: Arc<dyn ManifestParser>,
-        pool: Arc<PgPool>,
+        pool: PgPool,
         action_service: Arc<ActionService>,
     ) -> Self {
         let repository = Arc::new(PipelineRepository::new(pool.clone()));

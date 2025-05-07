@@ -33,11 +33,11 @@ struct ActionDetail {
 }
 
 pub struct PipelineRepository {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 impl PipelineRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
@@ -58,7 +58,7 @@ impl PipelineRepository {
                  JOIN commands c on c.action_id = a.id
             ORDER BY pipelines.id, a.id;"#
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
         let mut pipelines: Vec<Pipeline> = Vec::new();
@@ -135,7 +135,7 @@ impl PipelineRepository {
         ORDER BY pipelines.id, a.id;"#,
             id
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
         let mut actions_map: HashMap<i64, ActionDetail> = HashMap::new();
@@ -205,7 +205,7 @@ impl PipelineRepository {
             repository_url,
             name
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(row)

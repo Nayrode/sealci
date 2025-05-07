@@ -14,12 +14,12 @@ pub struct LogDTO {
 }
 
 pub struct LogRepository {
-    pool: Arc<PgPool>,
+    pool: PgPool,
 }
 
 impl LogRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool: pool }
     }
 
     pub async fn create(&self, action_id: i64, data: &String) -> Result<Log, sqlx::Error> {
@@ -29,7 +29,7 @@ impl LogRepository {
             action_id,
             data
         )
-        .fetch_one(self.pool.as_ref())
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(Log {
@@ -43,7 +43,7 @@ impl LogRepository {
             r#"SELECT * FROM logs WHERE action_id = $1"#,
             action_id
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(&self.pool)
         .await?;
 
         Ok(logs.into_iter().map(|log| Log { message: log.data }).collect())

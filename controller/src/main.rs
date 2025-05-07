@@ -49,7 +49,7 @@ async fn main() -> std::io::Result<()> {
     println!("${:?}", args);
     let database = Database::new(&args.database_url).await;
 
-    let pool = Arc::new(database.pool);
+    let pool = database.pool;
 
     let addr_in = args.http;
     let grpc_scheduler = args.grpc;
@@ -62,16 +62,16 @@ async fn main() -> std::io::Result<()> {
             .expect("Failed to connect to controller"),
     ));
 
-    let command_service = Arc::new(CommandService::new(Arc::clone(&pool)));
+    let command_service = Arc::new(CommandService::new(pool.clone()));
 
     let action_service = Arc::new(ActionService::new(
-        Arc::clone(&pool),
+        pool.clone(),
         Arc::clone(&command_service),
     ));
 
     let scheduler_service = Arc::new(scheduler::SchedulerService::new(
         client.clone(),
-        Arc::new(logs::log_repository::LogRepository::new(Arc::clone(&pool))),
+        Arc::new(logs::log_repository::LogRepository::new(pool.clone())),
         Arc::clone(&action_service),
     ));
 
@@ -80,11 +80,11 @@ async fn main() -> std::io::Result<()> {
     let pipeline_service = Arc::new(pipeline::pipeline_service::PipelineService::new(
         scheduler_service.clone(),
         parser_service.clone(),
-        Arc::clone(&pool),
+        pool,
         Arc::clone(&action_service),
     ));
 
-    info!("Listenning on {}", addr_in);
+    info!("Listening on {}", addr_in);
 
     HttpServer::new(move || {
         let cors = Cors::default()
