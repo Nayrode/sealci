@@ -1,9 +1,5 @@
 use crate::{
-    application::ports::command_service::CommandService,
-    domain::{
-        entities::command::{Command, CommandError},
-        repositories::command_repository::CommandRepository,
-    },
+    application::ports::command_service::CommandService, domain::command::{entities::command::{Command, CommandError}, ports::command_repository::CommandRepository},
 };
 use async_trait::async_trait;
 use std::sync::Arc;

@@ -1,12 +1,6 @@
 use crate::{
-    application::ports::{action_service::ActionService, command_service::CommandService},
-    domain::{
-        entities::{
-            action::{Action, ActionError, ActionType},
-            command,
-        },
-        repositories::action_repository::ActionRepository,
-    },
+    application::ports::{action_service::ActionService, command_service::CommandService}, domain::action::{entities::action::{Action, ActionError, ActionType}, ports::action_repository::ActionRepository},
+
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -60,4 +54,13 @@ impl ActionService for ActionServiceImpl {
     async fn find_by_pipeline_id(&self, pipeline_id: i64) -> Result<Vec<Action>, ActionError> {
         self.repository.find_by_pipeline_id(pipeline_id).await
     }
+
+    async fn update_status(
+        &self,
+        action_id: i64,
+        status: &String,
+    ) -> Result<Action, ActionError> {
+        self.repository.update_status(action_id, status).await
+    }
+    
 }

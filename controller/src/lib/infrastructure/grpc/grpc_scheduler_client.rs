@@ -1,33 +1,42 @@
 use std::pin::Pin;
 use std::sync::Arc;
-
-use crate::domain::entities::action::{
-    ActionRequest as DomainActionRequest, ActionResponse as DomainActionResponse,
-    ActionResult as DomainActionResult, ActionStatus as DomainActionStatus,
-};
-use crate::domain::services::scheduler_client::SchedulerClient;
-use crate::server::grpc_scheduler::controller_client::ControllerClient;
-use crate::server::grpc_scheduler::{
-    ActionRequest, ActionResponse, ActionResult, ExecutionContext, RunnerType,
-};
 use futures::lock::Mutex;
 use futures::{Stream, StreamExt};
 use std::error::Error;
 use tonic::transport::Channel;
 use tonic::{async_trait, Streaming};
+use crate::domain::action::entities::action::{
+    ActionRequest as DomainActionRequest,
+    ActionResponse as DomainActionResponse,
+    ActionResult as DomainActionResult,
+    ActionStatus as DomainActionStatus
+};
+pub mod proto_scheduler {
+    tonic::include_proto!("scheduler");
+}
+use crate::domain::scheduler::services::scheduler_client::SchedulerClient;
 
-impl From<ActionResponse> for DomainActionResponse {
-    fn from(grpc_response: ActionResponse) -> Self {
+use self::proto_scheduler::controller_client::ControllerClient;
+use self::proto_scheduler::{
+    ActionRequest as ProtoActionRequest, 
+    ActionResponse as ProtoActionResponse, 
+    ActionResult as ProtoActionResult,
+    ExecutionContext,
+    RunnerType
+};
+
+impl From<ProtoActionResponse> for DomainActionResponse {
+    fn from(grpc_response: ProtoActionResponse) -> Self {
         DomainActionResponse {
             action_id: grpc_response.action_id,
             log: grpc_response.log,
-            result: grpc_response.result.map(|res| res.into()),
+            result: grpc_response.result.map(|res| DomainActionResult::from(res)),
         }
     }
 }
 
-impl From<ActionResult> for DomainActionResult {
-    fn from(grpc_result: ActionResult) -> Self {
+impl From<ProtoActionResult> for DomainActionResult {
+    fn from(grpc_result: ProtoActionResult) -> Self {
         DomainActionResult {
             completion: DomainActionStatus::from_i32(grpc_result.completion),
             exit_code: grpc_result.exit_code,
@@ -47,9 +56,9 @@ impl DomainActionStatus {
     }
 }
 
-impl From<DomainActionRequest> for ActionRequest {
+impl From<DomainActionRequest> for ProtoActionRequest {
     fn from(domain_request: DomainActionRequest) -> Self {
-        ActionRequest {
+        ProtoActionRequest {
             action_id: domain_request.action_id,
             context: Some(ExecutionContext {
                 r#type: RunnerType::Docker as i32,
@@ -89,10 +98,10 @@ impl SchedulerClient for GrpcSchedulerClient {
         >,
         Box<dyn Error + Send + Sync>,
     > {
-        let grpc_request: ActionRequest = request.into();
+        let grpc_request: ProtoActionRequest = request.into();
 
         let mut client = self.client.lock().await;
-        let mut grpc_stream: Streaming<ActionResponse> =
+        let mut grpc_stream: Streaming<ProtoActionResponse> =
             client.schedule_action(grpc_request).await?.into_inner();
 
         let stream = async_stream::stream! {

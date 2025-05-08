@@ -1,17 +1,29 @@
-use controller::action::action_service::ActionService;
-use clap::Parser;
-use controller::command::command_service::CommandService;
-use controller::server::grpc_scheduler;
-use controller::{docs, health, logs};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-
-use controller::database::database::Database;
 use actix_cors::Cors;
 use actix_web::{web::Data, App, HttpServer};
-use dotenv::dotenv;
+use clap::Parser;
+use controller::application::ports::action_service::ActionService;
+use controller::application::ports::command_service::CommandService;
+use controller::application::ports::pipeline_service::PipelineService;
+use controller::application::ports::scheduler_service::SchedulerService;
+use controller::application::services::action_service::ActionServiceImpl;
+use controller::application::services::command_service::CommandServiceImpl;
+use controller::application::services::pipeline_service::PipelineServiceImpl;
+use controller::application::services::scheduler_service_impl::SchedulerServiceImpl;
+use controller::domain::action::ports::action_repository::ActionRepository;
+use controller::domain::command::ports::command_repository::CommandRepository;
+use controller::domain::pipeline::ports::pipeline_repository::PipelineRepository;
+use controller::domain::scheduler::services::scheduler_client::SchedulerClient;
+use controller::infrastructure::db::postgres::Postgres;
+use controller::infrastructure::grpc::grpc_scheduler_client::GrpcSchedulerClient;
+use controller::infrastructure::repositories::action_repository::PostgresActionRepository;
+use controller::infrastructure::repositories::command_repository::PostgresCommandRepository;
+use controller::infrastructure::repositories::pipeline_repository::PostgresPipelineRepository;
 use controller::parser::pipe_parser::PipeParser;
-use controller::pipeline::pipeline_controller;
+use controller::pipeline::pipeline_controller::{create_pipeline, get_pipelines, get_pipeline};
+use controller::{docs, health};
+use dotenv::dotenv;
+use futures::lock::Mutex;
+use std::sync::Arc;
 use tracing::info;
 
 #[derive(Parser, Debug)]
@@ -32,42 +44,60 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     println!("${:?}", args);
-    let database = Database::new(&args.database_url).await;
 
-    let pool = database.pool;
+    let postgres = Arc::new(Postgres::new(&args.database_url).await);
+    let pool = postgres.get_pool();
 
     let addr_in: String = args.http;
     let grpc_scheduler = args.grpc;
 
     tracing_subscriber::fmt::init();
 
-    let client = Arc::new(Mutex::new(
-        grpc_scheduler::controller_client::ControllerClient::connect(grpc_scheduler)
+    let command_repository = Arc::new(Box::new(PostgresCommandRepository::new(postgres.clone()))
+        as Box<dyn CommandRepository + Send + Sync>);
+
+    let action_repository = Arc::new(Box::new(PostgresActionRepository::new(postgres.clone()))
+        as Box<dyn ActionRepository + Send + Sync>);
+
+    let command_service: Arc<Box<dyn CommandService + Send + Sync>> =
+        Arc::new(Box::new(CommandServiceImpl::new(command_repository))
+            as Box<dyn CommandService + Send + Sync>);
+
+    let action_service: Arc<Box<dyn ActionService + Send + Sync>> = Arc::new(Box::new(
+        ActionServiceImpl::new(action_repository, Arc::clone(&command_service)),
+    )
+        as Box<dyn ActionService + Send + Sync>);
+
+    let grpc_client = Box::new(
+        GrpcSchedulerClient::new(&args.grpc)
             .await
-            .expect("Failed to connect to controller"),
+            .expect("Failed to connect to scheduler"),
+    );
+    let scheduler_client = Arc::new(Mutex::new(
+        grpc_client as Box<dyn SchedulerClient + Send + Sync>,
     ));
+    let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()))
+        as Arc<dyn PipelineRepository + Send + Sync>;
 
-    let command_service = Arc::new(CommandService::new(pool.clone()));
-
-    let action_service = Arc::new(ActionService::new(
-        pool.clone(),
-        Arc::clone(&command_service),
-    ));
-
-    let scheduler_service = Arc::new(controller::scheduler::SchedulerService::new(
-        client.clone(),
-        Arc::new(logs::log_repository::LogRepository::new(pool.clone())),
-        Arc::clone(&action_service),
-    ));
+    let scheduler_service: Arc<Box<dyn SchedulerService + Send + Sync>> =
+        Arc::new(Box::new(SchedulerServiceImpl::new(
+            action_service.clone(),
+            scheduler_client,
+            Arc::new(PostgresPipelineRepository::new(postgres.clone()))
+                as Arc<dyn PipelineRepository + Send + Sync>,
+        )));
 
     let parser_service = Arc::new(PipeParser {});
 
-    let pipeline_service = Arc::new(controller::pipeline::pipeline_service::PipelineService::new(
-        scheduler_service.clone(),
-        parser_service.clone(),
-        pool,
+    let pipeline_repository =
+    Arc::new(
+        Box::new(PostgresPipelineRepository::new(postgres.clone()))
+            as Box<dyn PipelineRepository + Send + Sync>
+    );
+    let pipeline_service = Arc::new(PipelineServiceImpl::new(
+        pipeline_repository,
         Arc::clone(&action_service),
-    ));
+    )) as Arc<dyn PipelineService + Send + Sync>;
 
     info!("Listening on {}", addr_in);
 
@@ -81,11 +111,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .wrap(actix_web::middleware::Logger::default())
-            .app_data(Data::new(pipeline_service.clone())) // TODO: replace this implementation by the real parser
+            .app_data(Data::new(pipeline_service.clone()))
             .app_data(Data::new(Arc::clone(&action_service)))
-            .service(pipeline_controller::create_pipeline)
-            .service(pipeline_controller::get_pipelines)
-            .service(pipeline_controller::get_pipeline)
+            .service(create_pipeline)
+            .service(get_pipelines)
+            .service(get_pipeline)
             .service(docs::doc)
             .service(docs::openapi)
             .route(

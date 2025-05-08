@@ -3,14 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    application::ports::{action_service::ActionService, pipeline_service::PipelineService},
-    domain::{
-        entities::{
-            action::{ActionStatus, ActionType},
-            pipeline::{ManifestPipeline, Pipeline, PipelineError},
-        },
-        repositories::pipeline_repository::PipelineRepository,
-    },
+    application::ports::{action_service::ActionService, pipeline_service::PipelineService}, domain::{action::entities::action::{ActionStatus, ActionType}, pipeline::{entities::pipeline::{ManifestPipeline, Pipeline, PipelineError}, ports::pipeline_repository::PipelineRepository}}
 };
 
 pub struct PipelineServiceImpl {

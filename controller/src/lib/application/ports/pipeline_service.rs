@@ -1,5 +1,6 @@
-use crate::domain::entities::pipeline::{ManifestPipeline, Pipeline, PipelineError};
 use async_trait::async_trait;
+
+use crate::domain::pipeline::entities::pipeline::{ManifestPipeline, Pipeline, PipelineError};
 
 #[async_trait]
 pub trait PipelineService: Send + Sync {

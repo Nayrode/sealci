@@ -14,8 +14,8 @@ pub struct Action {
     pub commands: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logs: Option<Vec<String>>,
-    r#type: Type,
-    status: String,
+    pub r#type: Type,
+    pub status: String,
 }
 
 #[derive(Debug)]

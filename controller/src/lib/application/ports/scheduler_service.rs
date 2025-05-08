@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::domain::entities::scheduler::SchedulerError;
+use crate::domain::scheduler::entities::scheduler::SchedulerError;
 
 #[async_trait]
 pub trait SchedulerService: Send + Sync {
