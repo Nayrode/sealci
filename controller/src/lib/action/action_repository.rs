@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use std::sync::Arc;
 
 use crate::{
-    action::action_service::ActionDTO, grpc_scheduler::ActionStatus, parser::pipe_parser::Type,
+    action::action_service::ActionDTO, server::grpc_scheduler::ActionStatus, parser::pipe_parser::Type,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

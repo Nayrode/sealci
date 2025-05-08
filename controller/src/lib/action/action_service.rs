@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use tracing::info;
 
 use crate::{
-    command::command_service::CommandService, grpc_scheduler::ActionStatus,
+    command::command_service::CommandService, server::grpc_scheduler::ActionStatus,
     parser::pipe_parser::Type,
 };
 

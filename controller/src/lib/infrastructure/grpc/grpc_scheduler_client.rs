@@ -6,8 +6,8 @@ use crate::domain::entities::action::{
     ActionResult as DomainActionResult, ActionStatus as DomainActionStatus,
 };
 use crate::domain::services::scheduler_client::SchedulerClient;
-use crate::grpc_scheduler::controller_client::ControllerClient;
-use crate::grpc_scheduler::{
+use crate::server::grpc_scheduler::controller_client::ControllerClient;
+use crate::server::grpc_scheduler::{
     ActionRequest, ActionResponse, ActionResult, ExecutionContext, RunnerType,
 };
 use futures::lock::Mutex;

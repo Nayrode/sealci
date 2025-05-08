@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::action::action_repository::Action;
 use crate::action::action_service::{ActionDTO, ActionService};
-use crate::grpc_scheduler::ActionStatus;
+use crate::server::grpc_scheduler::ActionStatus;
 use crate::logs::log_repository::LogRepository;
 use crate::pipeline::pipeline_repository::PipelineRepository;
 use crate::{

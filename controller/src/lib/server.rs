@@ -4,7 +4,7 @@ use std::thread;
 
 use std::time::Duration;
 
-use scheduler::{
+use grpc_scheduler::{
     controller_server::{Controller, ControllerServer},
     ActionRequest, ActionResponse,
 };
@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{async_trait, transport::Server, Request, Response, Status};
 
-pub mod scheduler {
+pub mod grpc_scheduler {
     tonic::include_proto!("scheduler");
 }
 
@@ -46,8 +46,8 @@ impl Controller for MockSchedulerService {
             tx.send(Ok(ActionResponse {
                 action_id: _request.get_ref().action_id,
                 log: "INFO: scheduled".to_string(),
-                result: Some(scheduler::ActionResult {
-                    completion: scheduler::ActionStatus::Scheduled as i32,
+                result: Some(grpc_scheduler::ActionResult {
+                    completion: grpc_scheduler::ActionStatus::Scheduled as i32,
                     exit_code: Some(1),
                 }),
             }))

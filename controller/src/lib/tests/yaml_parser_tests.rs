@@ -18,7 +18,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing() {
-        let yaml_content = read_yaml_file("src/tests/data/classic_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/classic_pipeline.yaml");
 
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing_without_name() {
-        let yaml_content = read_yaml_file("src/tests/data/unnamed_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/unnamed_pipeline.yaml");
 
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing_with_missing_actions() {
-        let yaml_content = read_yaml_file("src/tests/data/missing_actions_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/missing_actions_pipeline.yaml");
 
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing_with_invalid_data() {
-        let yaml_content = read_yaml_file("src/tests/data/invalid_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/invalid_pipeline.yaml");
 
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing_empty_commands() {
-        let yaml_content = read_yaml_file("src/tests/data/empty_commands_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/empty_commands_pipeline.yaml");
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
 
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_yaml_parsing_special_characters_valid() {
-        let yaml_content = read_yaml_file("src/tests/data/valid_special_characters_pipeline.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/valid_special_characters_pipeline.yaml");
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
 
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_yaml_parsing_special_characters_invalid() {
         let yaml_content =
-            read_yaml_file("src/tests/data/invalid_special_characters_pipeline.yaml");
+            read_yaml_file("src/lib/tests/data/invalid_special_characters_pipeline.yaml");
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
 
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_inconsistent_command_indentation() {
-        let yaml_content = read_yaml_file("src/tests/data/inconsistent_command_indentation.yaml");
+        let yaml_content = read_yaml_file("src/lib/tests/data/inconsistent_command_indentation.yaml");
         let parser = PipeParser {};
         let result = parser.parse(yaml_content);
 

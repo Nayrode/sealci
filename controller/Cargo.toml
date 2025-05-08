@@ -40,9 +40,13 @@ tonic-build = "0.12.0"
 
 [[bin]]
 name = "scheduler"
-path = "src/server.rs"
+path = "src/lib/server.rs"
 test = false
 
 [[bin]]
 name = "controller"
-path = "src/main.rs"
+path = "src/bin/main.rs"
+
+[lib]
+path = "src/lib/lib.rs"
+name = "controller"

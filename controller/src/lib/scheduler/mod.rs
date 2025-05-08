@@ -7,7 +7,7 @@ use tracing::{error, info};
 
 use crate::{
     action::{action_repository::Action, action_service::ActionService},
-    grpc_scheduler::{
+    server::grpc_scheduler::{
         self, controller_client::ControllerClient, ActionStatus, ExecutionContext, RunnerType,
     },
     logs::log_repository::LogRepository,

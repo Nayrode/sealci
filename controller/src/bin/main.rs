@@ -1,33 +1,18 @@
-use action::action_service::ActionService;
+use controller::action::action_service::ActionService;
 use clap::Parser;
-use command::command_service::CommandService;
+use controller::command::command_service::CommandService;
+use controller::server::grpc_scheduler;
+use controller::{docs, health, logs};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::database::database::Database;
+use controller::database::database::Database;
 use actix_cors::Cors;
 use actix_web::{web::Data, App, HttpServer};
 use dotenv::dotenv;
-use parser::pipe_parser::PipeParser;
-use pipeline::pipeline_controller;
+use controller::parser::pipe_parser::PipeParser;
+use controller::pipeline::pipeline_controller;
 use tracing::info;
-
-pub mod grpc_scheduler {
-    tonic::include_proto!("scheduler");
-}
-
-mod action;
-mod command;
-mod database;
-mod docs;
-mod domain;
-mod health;
-mod infrastructure;
-mod logs;
-pub mod parser;
-mod pipeline;
-pub mod scheduler;
-mod tests;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -51,7 +36,7 @@ async fn main() -> std::io::Result<()> {
 
     let pool = database.pool;
 
-    let addr_in = args.http;
+    let addr_in: String = args.http;
     let grpc_scheduler = args.grpc;
 
     tracing_subscriber::fmt::init();
@@ -69,7 +54,7 @@ async fn main() -> std::io::Result<()> {
         Arc::clone(&command_service),
     ));
 
-    let scheduler_service = Arc::new(scheduler::SchedulerService::new(
+    let scheduler_service = Arc::new(controller::scheduler::SchedulerService::new(
         client.clone(),
         Arc::new(logs::log_repository::LogRepository::new(pool.clone())),
         Arc::clone(&action_service),
@@ -77,7 +62,7 @@ async fn main() -> std::io::Result<()> {
 
     let parser_service = Arc::new(PipeParser {});
 
-    let pipeline_service = Arc::new(pipeline::pipeline_service::PipelineService::new(
+    let pipeline_service = Arc::new(controller::pipeline::pipeline_service::PipelineService::new(
         scheduler_service.clone(),
         parser_service.clone(),
         pool,
