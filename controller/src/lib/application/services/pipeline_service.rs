@@ -25,7 +25,7 @@ impl PipelineServiceImpl {
 
 #[async_trait]
 impl PipelineService for PipelineServiceImpl {
-    async fn find_all(&self) -> Vec<Pipeline> {
+    async fn find_all(&self, verbose: bool) -> Vec<Pipeline> { // TODO handle verbose
         self.repository.find_all().await.unwrap_or_else(|_| vec![])
     }
 

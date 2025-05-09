@@ -19,7 +19,7 @@ use controller::infrastructure::repositories::action_repository::PostgresActionR
 use controller::infrastructure::repositories::command_repository::PostgresCommandRepository;
 use controller::infrastructure::repositories::pipeline_repository::PostgresPipelineRepository;
 use controller::parser::pipe_parser::PipeParser;
-use controller::pipeline::pipeline_controller::{create_pipeline, get_pipelines, get_pipeline};
+use controller::application::http::pipeline::router::configure as configure_pipeline_routes;
 use controller::{docs, health};
 use dotenv::dotenv;
 use futures::lock::Mutex;
@@ -46,7 +46,6 @@ async fn main() -> std::io::Result<()> {
     println!("${:?}", args);
 
     let postgres = Arc::new(Postgres::new(&args.database_url).await);
-    let pool = postgres.get_pool();
 
     let addr_in: String = args.http;
     let grpc_scheduler = args.grpc;
@@ -69,7 +68,7 @@ async fn main() -> std::io::Result<()> {
         as Box<dyn ActionService + Send + Sync>);
 
     let grpc_client = Box::new(
-        GrpcSchedulerClient::new(&args.grpc)
+        GrpcSchedulerClient::new(&grpc_scheduler.clone())
             .await
             .expect("Failed to connect to scheduler"),
     );
@@ -113,9 +112,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(actix_web::middleware::Logger::default())
             .app_data(Data::new(pipeline_service.clone()))
             .app_data(Data::new(Arc::clone(&action_service)))
-            .service(create_pipeline)
-            .service(get_pipelines)
-            .service(get_pipeline)
+            .configure(configure_pipeline_routes)
             .service(docs::doc)
             .service(docs::openapi)
             .route(

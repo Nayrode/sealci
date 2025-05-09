@@ -4,7 +4,7 @@ use crate::domain::pipeline::entities::pipeline::{ManifestPipeline, Pipeline, Pi
 
 #[async_trait]
 pub trait PipelineService: Send + Sync {
-    async fn find_all(&self) -> Vec<Pipeline>;
+    async fn find_all(&self, verbose: bool) -> Vec<Pipeline>;
     async fn find_by_id(&self, pipeline_id: i64) -> Result<Pipeline, PipelineError>;
     async fn create_pipeline(
         &self,
