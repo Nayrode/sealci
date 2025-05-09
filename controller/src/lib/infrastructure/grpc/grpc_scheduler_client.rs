@@ -77,10 +77,10 @@ pub struct GrpcSchedulerClient {
 impl GrpcSchedulerClient {
     pub async fn new(grpc_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let client = ControllerClient::connect(grpc_url.to_string()).await?;
-
+        tracing::info!("Connected to scheduler at {}", grpc_url);
         Ok(Self {
             client: Arc::new(Mutex::new(client)),
-        })
+        })  
     }
 }
 
