@@ -50,44 +50,35 @@ async fn main() -> std::io::Result<()> {
 
     let addr_in: String = args.http;
 
-    let grpc_client: Box<dyn SchedulerClient + Send + Sync> = Box::new(
+    let grpc_client= 
         GrpcSchedulerClient::new(&args.grpc)
             .await
-            .expect("Failed to connect to scheduler"),
-    );
+            .expect("Failed to connect to scheduler");
     let scheduler_client = Arc::new(Mutex::new(grpc_client));
 
-    let command_repository = Arc::new(Box::new(PostgresCommandRepository::new(postgres.clone()))
-        as Box<dyn CommandRepository + Send + Sync>);
+    let command_repository = Arc::new(PostgresCommandRepository::new(postgres.clone()));
 
-    let action_repository = Arc::new(Box::new(PostgresActionRepository::new(postgres.clone()))
-        as Box<dyn ActionRepository + Send + Sync>);
+    let action_repository = Arc::new(PostgresActionRepository::new(postgres.clone()));
 
-    let command_service: Arc<Box<dyn CommandService + Send + Sync>> =
-        Arc::new(Box::new(CommandServiceImpl::new(command_repository))
-            as Box<dyn CommandService + Send + Sync>);
+    let command_service =
+        Arc::new(CommandServiceImpl::new(command_repository));
 
-    let action_service: Arc<Box<dyn ActionService + Send + Sync>> = Arc::new(Box::new(
-        ActionServiceImpl::new(action_repository, Arc::clone(&command_service)),
-    )
-        as Box<dyn ActionService + Send + Sync>);
+    let action_service = Arc::new(
+        ActionServiceImpl::new(action_repository, command_service),
+    );
 
-    let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()))
-        as Arc<dyn PipelineRepository + Send + Sync>;
+    let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()));
 
-    let scheduler_service: Arc<Box<dyn SchedulerService + Send + Sync>> =
-        Arc::new(Box::new(SchedulerServiceImpl::new(
-            Arc::clone(&action_service),
-            Arc::clone(&scheduler_client),
-            Arc::clone(&pipeline_repository) as Arc<dyn PipelineRepository + Send + Sync>,
-        )));
+    let pipeline_service = Arc::new(
+        PipelineServiceImpl::new(pipeline_repository.clone(), action_service.clone()),
+    );
 
-    let pipeline_repository = Arc::new(Box::new(PostgresPipelineRepository::new(postgres.clone()))
-        as Box<dyn PipelineRepository + Send + Sync>);
-    let pipeline_service = Arc::new(PipelineServiceImpl::new(
-        pipeline_repository,
-        Arc::clone(&action_service),
-    )) as Arc<dyn PipelineService + Send + Sync>;
+    let scheduler_service =
+        Arc::new(SchedulerServiceImpl::new(
+            action_service.clone(),
+            scheduler_client,
+            pipeline_repository.clone(),
+        ));
 
     info!("Listening on {}", addr_in);
 
@@ -102,7 +93,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(actix_web::middleware::Logger::default())
             .app_data(Data::new(pipeline_service.clone()))
-            .app_data(Data::new(Arc::clone(&action_service)))
+            .app_data(Data::new(action_service.clone()))
             .app_data(Data::new(scheduler_service.clone()))
             .configure(configure_pipeline_routes)
             .service(docs::doc)

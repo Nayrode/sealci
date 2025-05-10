@@ -4,18 +4,18 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::Arc;
 
-pub struct CommandServiceImpl {
-    repository: Arc<Box<dyn CommandRepository + Send + Sync>>,
+pub struct CommandServiceImpl<R> where R: CommandRepository + Send + Sync {
+    repository: Arc<R>,
 }
 
-impl CommandServiceImpl {
-    pub fn new(repository: Arc<Box<dyn CommandRepository + Send + Sync>>) -> Self {
+impl<R> CommandServiceImpl<R> where R: CommandRepository + Send + Sync {
+    pub fn new(repository: Arc<R>) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl CommandService for CommandServiceImpl {
+impl<R> CommandService for CommandServiceImpl<R> where R: CommandRepository + Send + Sync {
     async fn find_by_action_id(&self, action_id: i64) -> Result<Vec<Command>, CommandError> {
         self.repository.find_by_action_id(action_id).await
     }

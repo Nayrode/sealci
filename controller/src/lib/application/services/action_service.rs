@@ -5,15 +5,15 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::Arc;
 
-pub struct ActionServiceImpl {
-    repository: Arc<Box<dyn ActionRepository + Send + Sync>>,
-    command_service: Arc<Box<dyn CommandService + Send + Sync>>,
+pub struct ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: CommandService + Send + Sync {
+    repository: Arc<R>,
+    command_service: Arc<C>
 }
 
-impl ActionServiceImpl {
+impl<R, C> ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: CommandService + Send + Sync {
     pub fn new(
-        repository: Arc<Box<dyn ActionRepository + Send + Sync>>,
-        command_service: Arc<Box<dyn CommandService + Send + Sync>>,
+        repository: Arc<R>,
+        command_service: Arc<C>,
     ) -> Self {
         Self {
             repository,
@@ -23,7 +23,7 @@ impl ActionServiceImpl {
 }
 
 #[async_trait]
-impl ActionService for ActionServiceImpl {
+impl<R, C> ActionService for ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: CommandService + Send + Sync {
     async fn create(
         &self,
         pipeline_id: i64,

@@ -11,24 +11,37 @@ use tokio_stream::StreamExt;
 use tracing::info;
 use std::sync::Arc;
 
-pub struct SchedulerServiceImpl {
-    action_service: Arc<Box<dyn ActionService + Send + Sync>>,
-    scheduler_client: Arc<Mutex<Box<dyn SchedulerClient + Send + Sync>>>,
-    pipeline_repository: Arc<dyn PipelineRepository + Send + Sync>
+pub struct SchedulerServiceImpl<A, S, R>
+where
+    A: ActionService + Send + Sync,
+    S: SchedulerClient + Send + Sync,
+    R: PipelineRepository + Send + Sync,{
+    action_service: Arc<A>,
+    scheduler_client: Arc<Mutex<S>>,
+    pipeline_repository: Arc<R>,
 }
 
-impl SchedulerServiceImpl {
+impl<A,S,R> SchedulerServiceImpl<A,S,R>
+where
+    A: ActionService + Send + Sync,
+    S: SchedulerClient + Send + Sync,
+    R: PipelineRepository + Send + Sync,{
     pub fn new(
-        action_service: Arc<Box<dyn ActionService + Send + Sync>>, 
-        scheduler_client: Arc<Mutex<Box<dyn SchedulerClient + Send + Sync>>>,
-        pipeline_repository: Arc<dyn PipelineRepository + Send + Sync>
+        action_service: Arc<A>,
+        scheduler_client: Arc<Mutex<S>>,
+        pipeline_repository: Arc<R>,
     ) -> Self {
         Self { action_service, scheduler_client, pipeline_repository }
     }
 }
 
 #[async_trait]
-impl SchedulerService for SchedulerServiceImpl {
+impl<A, S, R> SchedulerService for SchedulerServiceImpl<A, S, R>
+where
+    A: ActionService + Send + Sync,
+    S: SchedulerClient + Send + Sync,
+    R: PipelineRepository + Send + Sync,
+{
     async fn execute_pipeline(&self, pipeline_id: i64) -> Result<(), SchedulerError> {
         // 1. Find actions by pipeline ID
         let mut actions = self.action_service

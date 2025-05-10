@@ -7,14 +7,14 @@ use crate::{
 };
 
 pub struct PipelineServiceImpl {
-    repository: Arc<Box<dyn PipelineRepository + Send + Sync>>,
-    action_service: Arc<Box<dyn ActionService + Send + Sync>>,
+    repository: Arc<dyn PipelineRepository + Send + Sync>,
+    action_service: Arc<dyn ActionService + Send + Sync>,
 }
 
 impl PipelineServiceImpl {
     pub fn new(
-        repository: Arc<Box<dyn PipelineRepository + Send + Sync>>,
-        action_service: Arc<Box<dyn ActionService + Send + Sync>>,
+        repository: Arc<dyn PipelineRepository + Send + Sync>,
+        action_service: Arc<dyn ActionService + Send + Sync>,
     ) -> Self {
         Self {
             repository,

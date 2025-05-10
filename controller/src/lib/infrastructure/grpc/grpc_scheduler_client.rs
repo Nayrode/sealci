@@ -11,13 +11,10 @@ use crate::domain::action::entities::action::{
     ActionResult as DomainActionResult,
     ActionStatus as DomainActionStatus
 };
-pub mod proto_scheduler {
-    tonic::include_proto!("scheduler");
-}
 use crate::domain::scheduler::services::scheduler_client::SchedulerClient;
 
-use self::proto_scheduler::controller_client::ControllerClient;
-use self::proto_scheduler::{
+use crate::infrastructure::grpc::proto_scheduler::controller_client::ControllerClient;
+use crate::infrastructure::grpc::proto_scheduler::{
     ActionRequest as ProtoActionRequest, 
     ActionResponse as ProtoActionResponse, 
     ActionResult as ProtoActionResult,
