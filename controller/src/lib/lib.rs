@@ -1,5 +1,3 @@
-pub mod action;
-pub mod command;
 pub mod database;
 pub mod docs;
 pub mod domain;
