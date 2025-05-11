@@ -2,18 +2,10 @@ use actix_cors::Cors;
 use actix_web::{web::Data, App, HttpServer};
 use clap::Parser;
 use controller::application::http::pipeline::router::configure as configure_pipeline_routes;
-use controller::application::ports::action_service::ActionService;
-use controller::application::ports::command_service::CommandService;
-use controller::application::ports::pipeline_service::PipelineService;
-use controller::application::ports::scheduler_service::SchedulerService;
 use controller::application::services::action_service::ActionServiceImpl;
 use controller::application::services::command_service::CommandServiceImpl;
 use controller::application::services::pipeline_service::PipelineServiceImpl;
 use controller::application::services::scheduler_service_impl::SchedulerServiceImpl;
-use controller::domain::action::ports::action_repository::ActionRepository;
-use controller::domain::command::ports::command_repository::CommandRepository;
-use controller::domain::pipeline::ports::pipeline_repository::PipelineRepository;
-use controller::domain::scheduler::services::scheduler_client::SchedulerClient;
 use controller::infrastructure::db::postgres::Postgres;
 use controller::infrastructure::grpc::grpc_scheduler_client::GrpcSchedulerClient;
 use controller::infrastructure::repositories::action_repository::PostgresActionRepository;
@@ -68,17 +60,17 @@ async fn main() -> std::io::Result<()> {
     );
 
     let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()));
+    
+    let scheduler_service =
+    Arc::new(Mutex::new(SchedulerServiceImpl::new(
+        action_service.clone(),
+        scheduler_client,
+        pipeline_repository.clone(),
+    )));
 
     let pipeline_service = Arc::new(
-        PipelineServiceImpl::new(pipeline_repository.clone(), action_service.clone()),
+        PipelineServiceImpl::new(pipeline_repository.clone(), action_service.clone(), scheduler_service.clone()),
     );
-
-    let scheduler_service =
-        Arc::new(SchedulerServiceImpl::new(
-            action_service.clone(),
-            scheduler_client,
-            pipeline_repository.clone(),
-        ));
 
     info!("Listening on {}", addr_in);
 

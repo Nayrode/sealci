@@ -1,5 +1,5 @@
 use crate::{
-    application::ports::{action_service::ActionService, scheduler_service::SchedulerService}, domain::{pipeline::ports::pipeline_repository::{self, PipelineRepository}, scheduler::{entities::scheduler::SchedulerError, services::scheduler_client::SchedulerClient}},
+    application::ports::{action_service::ActionService, scheduler_service::SchedulerService}, domain::{pipeline::ports::pipeline_repository::{self, PipelineRepository}, scheduler::{entities::scheduler::SchedulerError, services::scheduler_client::SchedulerClient}}, infrastructure::{grpc::grpc_scheduler_client::GrpcSchedulerClient, repositories::{action_repository::PostgresActionRepository, pipeline_repository::PostgresPipelineRepository}},
 };
 use crate::domain::action::entities::action::{
     ActionRequest as DomainActionRequest,
@@ -10,6 +10,10 @@ use futures::lock::Mutex;
 use tokio_stream::StreamExt;
 use tracing::info;
 use std::sync::Arc;
+
+use super::action_service::DefaultActionServiceImpl;
+
+pub type DefaultSchedulerServiceImpl = SchedulerServiceImpl<DefaultActionServiceImpl, GrpcSchedulerClient, PostgresPipelineRepository>;
 
 pub struct SchedulerServiceImpl<A, S, R>
 where

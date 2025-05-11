@@ -1,30 +1,53 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::lock::Mutex;
 
 use crate::{
-    application::ports::{action_service::ActionService, pipeline_service::PipelineService}, domain::{action::entities::action::{ActionStatus, ActionType}, pipeline::{entities::pipeline::{ManifestPipeline, Pipeline, PipelineError}, ports::pipeline_repository::PipelineRepository}}
+    application::ports::{action_service::ActionService, pipeline_service::PipelineService, scheduler_service::SchedulerService}, domain::{action::entities::action::{ActionStatus, ActionType}, pipeline::{entities::pipeline::{ManifestPipeline, Pipeline, PipelineError}, ports::pipeline_repository::PipelineRepository}}, infrastructure::repositories::pipeline_repository::PostgresPipelineRepository
 };
 
-pub struct PipelineServiceImpl {
-    repository: Arc<dyn PipelineRepository + Send + Sync>,
-    action_service: Arc<dyn ActionService + Send + Sync>,
+use super::{action_service::DefaultActionServiceImpl, scheduler_service_impl::DefaultSchedulerServiceImpl};
+
+pub type DefaultPipelineServiceImpl = PipelineServiceImpl<PostgresPipelineRepository, DefaultActionServiceImpl, DefaultSchedulerServiceImpl>;
+
+pub struct PipelineServiceImpl<R, A, S>
+where
+    R: PipelineRepository + Send + Sync,
+    A: ActionService + Send + Sync,
+    S: SchedulerService + Send + Sync,
+{
+    repository: Arc<R>,
+    action_service: Arc<A>,
+    scheduler_service: Arc<Mutex<S>>,
 }
 
-impl PipelineServiceImpl {
+impl<R, A, S> PipelineServiceImpl<R, A, S>
+where
+    R: PipelineRepository + Send + Sync,
+    A: ActionService + Send + Sync,
+    S: SchedulerService + Send + Sync,
+{
     pub fn new(
-        repository: Arc<dyn PipelineRepository + Send + Sync>,
-        action_service: Arc<dyn ActionService + Send + Sync>,
+        repository: Arc<R>,
+        action_service: Arc<A>,
+        scheduler_service: Arc<Mutex<S>>,
     ) -> Self {
         Self {
             repository,
             action_service,
+            scheduler_service,
         }
     }
 }
 
 #[async_trait]
-impl PipelineService for PipelineServiceImpl {
+impl<R, A, S> PipelineService for PipelineServiceImpl<R, A, S>
+where
+    R: PipelineRepository + Send + Sync,
+    A: ActionService + Send + Sync,
+    S: SchedulerService + Send + Sync,
+{
     async fn find_all(&self, verbose: bool) -> Vec<Pipeline> { // TODO handle verbose
         self.repository.find_all().await.unwrap_or_else(|_| vec![])
     }
@@ -61,6 +84,8 @@ impl PipelineService for PipelineServiceImpl {
                 )
                 .await;
         }
+
+        self.scheduler_service.lock().await.execute_pipeline(pipeline.id).await.map_err(|e| PipelineError::CreateError(e.to_string()))?;
 
         Ok(pipeline)
     }

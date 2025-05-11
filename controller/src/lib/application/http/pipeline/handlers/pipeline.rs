@@ -7,7 +7,7 @@ use tracing::{error, info};
 
 // — use the parser ManifestPipeline under its own name —
 use crate::application::ports::pipeline_service::PipelineService;
-use crate::application::services::pipeline_service::PipelineServiceImpl;
+use crate::application::services::pipeline_service::DefaultPipelineServiceImpl;
 use crate::parser::pipe_parser::{
     ManifestParser, ManifestPipeline as ParserManifestPipeline, ParsingError, PipeParser,
 };
@@ -36,7 +36,7 @@ struct PipelineQueryParams {
 
 #[get("/pipeline")]
 pub async fn get_pipelines(
-    pipeline_service: web::Data<Arc<PipelineServiceImpl>>,
+    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
     query: web::Query<PipelineQueryParams>,
 ) -> impl Responder {
     let verbose = query.verbose.unwrap_or(false);
@@ -47,7 +47,7 @@ pub async fn get_pipelines(
 #[get("/pipeline/{id}")]
 pub async fn get_pipeline(
     path: web::Path<PipelineByIDQuery>,
-    pipeline_service: web::Data<Arc<PipelineServiceImpl>>,
+    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
     query: web::Query<PipelineQueryParams>,
 ) -> impl Responder {
     let id = path.id;
@@ -71,7 +71,7 @@ pub async fn get_pipeline(
 #[post("/pipeline")]
 pub async fn create_pipeline(
     MultipartForm(form): MultipartForm<UploadPipelineForm>,
-    pipeline_service: web::Data<Arc<PipelineServiceImpl>>,
+    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
 ) -> impl Responder {
     info!(
         "Uploaded file {} with repository {}",

@@ -1,8 +1,10 @@
 use crate::{
-    application::ports::command_service::CommandService, domain::command::{entities::command::{Command, CommandError}, ports::command_repository::CommandRepository},
+    application::ports::command_service::CommandService, domain::command::{entities::command::{Command, CommandError}, ports::command_repository::CommandRepository}, infrastructure::repositories::command_repository::PostgresCommandRepository,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
+
+pub type DefaultCommandServiceImpl = CommandServiceImpl<PostgresCommandRepository>;
 
 pub struct CommandServiceImpl<R> where R: CommandRepository + Send + Sync {
     repository: Arc<R>,

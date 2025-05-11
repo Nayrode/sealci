@@ -1,9 +1,13 @@
 use crate::{
-    application::ports::{action_service::ActionService, command_service::CommandService}, domain::action::{entities::action::{Action, ActionError, ActionType}, ports::action_repository::ActionRepository},
+    application::ports::{action_service::ActionService, command_service::CommandService}, domain::action::{entities::action::{Action, ActionError, ActionType}, ports::action_repository::ActionRepository}, infrastructure::repositories::action_repository::PostgresActionRepository,
 
 };
 use async_trait::async_trait;
 use std::sync::Arc;
+
+use super::command_service::DefaultCommandServiceImpl;
+
+pub type DefaultActionServiceImpl = ActionServiceImpl<PostgresActionRepository, DefaultCommandServiceImpl>;
 
 pub struct ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: CommandService + Send + Sync {
     repository: Arc<R>,
