@@ -4,6 +4,7 @@
 extern crate libc;
 
 use std::io;
+use std::sync::{Arc, Mutex};
 use std::{result, u64};
 
 use kvm_bindings::{kvm_fpu, kvm_regs, CpuId};
@@ -16,6 +17,8 @@ mod gdt;
 use gdt::*;
 mod interrupts;
 use interrupts::*;
+
+use crate::devices::serial::{DumperSerial, SERIAL_PORT_BASE, SERIAL_PORT_LAST_REGISTER};
 pub(crate) mod mpspec;
 pub(crate) mod mptable;
 pub(crate) mod msr_index;
@@ -62,14 +65,18 @@ pub(crate) struct Vcpu {
     pub index: u64,
     /// KVM file descriptor for a vCPU.
     pub vcpu_fd: VcpuFd,
+
+    /// Serial device.
+    pub serial: Arc<Mutex<DumperSerial>>,
 }
 
 impl Vcpu {
     /// Create a new vCPU.
-    pub fn new(vm_fd: &VmFd, index: u64) -> Result<Self> {
+    pub fn new(vm_fd: &VmFd, index: u64, serial: Arc<Mutex<DumperSerial>>) -> Result<Self> {
         Ok(Vcpu {
             index,
             vcpu_fd: vm_fd.create_vcpu(index).map_err(Error::KvmIoctl)?,
+            serial,
         })
     }
 
@@ -225,7 +232,41 @@ impl Vcpu {
 
                     unsafe { libc::exit(0) };
                 }
+                // This is a PIO write, i.e. the guest is trying to write
+                // something to an I/O port.
+                VcpuExit::IoOut(addr, data) => match addr {
+                    SERIAL_PORT_BASE..=SERIAL_PORT_LAST_REGISTER => {
+                        self.serial
+                            .lock()
+                            .unwrap()
+                            .serial
+                            .write(
+                                (addr - SERIAL_PORT_BASE)
+                                    .try_into()
+                                    .expect("Invalid serial register offset"),
+                                data[0],
+                            )
+                            .unwrap();
+                    }
+                    _ => {
+                        println!("Unsupported device write at {:x?}", addr);
+                    }
+                },
 
+                // This is a PIO read, i.e. the guest is trying to read
+                // from an I/O port.
+                VcpuExit::IoIn(addr, data) => match addr {
+                    SERIAL_PORT_BASE..=SERIAL_PORT_LAST_REGISTER => {
+                        data[0] = self.serial.lock().unwrap().serial.read(
+                            (addr - SERIAL_PORT_BASE)
+                                .try_into()
+                                .expect("Invalid serial register offset"),
+                        );
+                    }
+                    _ => {
+                        println!("Unsupported device read at {:x?}", addr);
+                    }
+                },
                 _ => {
                     eprintln!("Unhandled VM-Exit: {:?}", exit_reason);
                 }

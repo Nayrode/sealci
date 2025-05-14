@@ -41,7 +41,7 @@ pub(crate) struct DumperSerial {
     eventfd: EventFdTrigger,
 
     // serial is the actual serial device.
-    serial: Serial<EventFdTrigger, NoEvents, Stdout>,
+    pub serial: Serial<EventFdTrigger, NoEvents, Stdout>,
 }
 
 impl DumperSerial {
