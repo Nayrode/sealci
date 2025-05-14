@@ -3,11 +3,8 @@ use std::{
 };
 
 mod irq_allocator;
-
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::thread;
-
+use event_manager::{EventManager, MutEventSubscriber};
 use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
 use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::{Cmdline, KernelLoaderResult};
@@ -73,7 +70,6 @@ impl VMM {
         let mut cmdline = Cmdline::new(crate::kernel::CMDLINE.len() + 1).map_err(Error::Cmdline)?;
         cmdline.insert_str(crate::kernel::CMDLINE).map_err(Error::Cmdline)?;
         let device_mgr = IoManager::new();
-        let vm_fd = kvm.create_vm().map_err(Error::KvmIoctl)?;
         let serial = Arc::new(Mutex::new(
             DumperSerial::new().map_err(Error::SerialCreation)?,
         ));
