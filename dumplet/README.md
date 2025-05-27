@@ -1,5 +1,5 @@
 # **Dumplet 🐳 → 📁**
-🔹 **Dumplet** is a Rust **crate** and **CLI tool** that extracts the filesystem of a **Docker image** and saves it as a `.tar` archive.  
+🔹 **Dumplet** is a Rust **CLI tool** that extracts the filesystem of a **Docker image** and creates an **initramfs image**.  
 🔹 It uses the **Bollard** crate to interact with the Docker API.
 
 ---
@@ -8,18 +8,18 @@
 ✅ Pulls a **Docker image** (always forced for now).  
 ✅ Creates a **temporary container** _(without running it)_.  
 ✅ Exports the **container’s filesystem** as a `.tar` archive.  
+✅ Extracts the filesystem and builds a compressed **initramfs image** (`.img` file).  
 ✅ **Automatically removes** the container after extraction.  
-✅ Can be used as a **Rust library** or as a **CLI**.
+✅ Simple and straightforward to use via the **command line interface (CLI)**.
 
 ---
 
 ## **📦 Installation**
 ### **Prerequisites**
-- **Docker** must be installed and running on your system.
-    - Install Docker: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-- Rust & Cargo installed: [https://rustup.rs/](https://rustup.rs/)
+- **Docker** must be [installed and running](https://docs.docker.com/get-docker/) on your system.
+- **Rust** & **Cargo** [installed](https://rustup.rs/)
 
-### **As a CLI Tool (Recommended if you just want to export images)**
+### **Using Dumplet CLI**
 1. Clone the repository:
     ```sh
     git clone https://github.com/dev-sys-do/sealci
@@ -29,43 +29,23 @@
     ```sh
     cargo build --release
     ```
-3. Use it:
+3. Run Dumplet with the Docker image and output initramfs path:
     ```sh
-    ./target/release/dumplet <IMAGE_NAME> <OUTPUT_PATH>
+    ./target/release/dumplet <IMAGE_NAME> <OUTPUT_INITRAMFS_PATH>
     ```
    **Example:**
     ```sh
-    ./target/release/dumplet ubuntu:latest ./tmp/ubuntu_fs.tar
+    ./target/release/dumplet ubuntu:latest /tmp/initramfs.img
     ```
-
-### **As a Rust Library**
-If you want to use Dumplet’s logic in your own Rust project, add it to your `Cargo.toml`:
-```toml
-[dependencies]
-dumplet = { path = "../dumplet" }
-```
-
-Example usage in your Rust code:
-```rust
-use dumplet::export_docker_image;
-
-#[tokio::main]
-async fn main() {
-    export_docker_image("ubuntu:latest", "/tmp/ubuntu_fs.tar").await.unwrap();
-}
-```
 
 ---
 
 ## **📂 Output Example**
-After running the above example, you’ll get:
+After running the example above, you’ll get an initramfs image file, for example:
 ```sh
-/tmp/ubuntu_fs.tar
+/tmp/initramfs.img
 ```
-You can extract it with:
-```sh
-tar -xf /tmp/ubuntu_fs.tar -C /your/destination
-```
+You can use this image in your bootloader or kernel configuration.
 
 ---
 

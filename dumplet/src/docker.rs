@@ -11,7 +11,7 @@ pub async fn export_docker_image(image_name: &str, output_path: &str) -> Result<
     let docker = Docker::connect_with_local_defaults()?;
 
     // Pull the image
-    println!("Pulling image {}...", image_name);
+    println!("🔹 Pulling image {}...", image_name);
     let options = Some(CreateImageOptions {
         from_image: image_name,
         ..Default::default()
@@ -44,6 +44,6 @@ pub async fn export_docker_image(image_name: &str, output_path: &str) -> Result<
         file.write_all(&chunk)?;
     }
 
-    println!("Export completed: {}", output_path);
+    println!("🔹 Export completed: {}", output_path);
     Ok(())
 }
