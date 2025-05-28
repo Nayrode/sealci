@@ -1,5 +1,6 @@
 use crate::constants::{CONFIG_NOT_FOUND, INVALID_EVENT_ERROR, MISSING_CONFIG, VALID_EVENTS};
 use crate::file_utils::process_multipart_form;
+use crate::github::models::GithubRepository;
 use actix_multipart::Multipart;
 use actix_web::web::Data;
 use actix_web::{delete, get, post, put, web, Error, HttpResponse, Responder, Result};
@@ -61,18 +62,15 @@ pub async fn get_configuration_by_id(
 
 #[post("/configurations")]
 pub async fn add_configuration(
-    payload: Multipart,
     data: Data<AppState>,
+    payload: Multipart,
     thread_list: Data<RwLock<JoinSet<()>>>,
 ) -> impl Responder {
     let result = match process_multipart_form(payload).await {
         Ok(result) => result,
         Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
     };
-    let actions_path = match result.actions_file_path {
-        Some(actions_path) => actions_path,
-        None => return HttpResponse::BadRequest().json(MISSING_CONFIG),
-    };
+
     let single_config = GithubRepository {
         event: result.new_config.event,
         repo_owner: result.new_config.repo_owner,
