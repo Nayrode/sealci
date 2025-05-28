@@ -57,7 +57,7 @@ pub struct VMM {
     net_devices: Vec<Arc<Mutex<Net<Arc<GuestMemoryMmap>>>>>,
     address_allocator: Option<AddressAllocator>,
     irq_allocator: IrqAllocator,
-    event_mgr: EventMgr,
+    event_mgr: Arc<Mutex<EventMgr>>,
     device_mgr: Arc<Mutex<IoManager>>,
     cmdline: Cmdline,
     serial: Arc<Mutex<DumperSerial>>,
@@ -90,7 +90,7 @@ impl VMM {
             address_allocator: None,
             net_devices: Vec::new(),
             irq_allocator: IrqAllocator::new(SERIAL_IRQ, IRQ_MAX.into()).unwrap(),
-            event_mgr: EventManager::new().unwrap(),
+            event_mgr: Arc::new(Mutex::new(EventManager::new().unwrap())),
             device_mgr,
             cmdline
         };
@@ -206,12 +206,13 @@ impl VMM {
             gsi: irq,
         };
 
-        let mut guard = self.device_mgr.lock().unwrap();
+        let mut device_guard = self.device_mgr.lock().unwrap();
+        let mut event_guard = self.event_mgr.lock().unwrap();
 
         let mut env = Env {
             mem: Arc::new(self.guest_memory.clone()),
-            event_mgr: &mut self.event_mgr,
-            mmio_mgr: guard.deref_mut(),
+            event_mgr: event_guard.deref_mut(),
+            mmio_mgr: device_guard.deref_mut(),
             mmio_cfg,
             vm_fd: self.vm_fd.clone(),
             kernel_cmdline: &mut self.cmdline,
@@ -248,6 +249,14 @@ impl VMM {
         let mut events = vec![epoll::Event::new(epoll::Events::empty(), 0); EPOLL_EVENTS_LEN];
         let epoll_fd = self.epoll.as_raw_fd();
 
+        let event_mgr = self.event_mgr.clone();
+        let _ = thread::Builder::new().spawn(move || loop {
+            match event_mgr.lock().unwrap().run() {
+                Ok(_) => (),
+                Err(e) => eprintln!("Failed to handle events: {:?}", e),
+            }
+        });
+        
         // Let's start the STDIN polling thread.
         loop {
             let num_events =
