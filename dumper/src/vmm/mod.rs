@@ -1,6 +1,7 @@
 use std::{
     io, os::fd::{AsRawFd, RawFd}, path::PathBuf, sync::{Arc, Mutex}
 };
+use std::fmt::Pointer;
 
 mod irq_allocator;
 use std::thread;
@@ -8,7 +9,6 @@ use event_manager::{EventManager, MutEventSubscriber};
 use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
 use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::{Cmdline, KernelLoaderResult};
-use log::error;
 use vm_allocator::{AddressAllocator, AllocPolicy};
 use vm_device::bus::{MmioAddress, MmioRange};
 use vm_device::device_manager::IoManager;
@@ -67,7 +67,7 @@ impl VMM {
     pub fn new() -> Result<Self, Error> {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
-        let mut cmdline = Cmdline::new(crate::kernel::CMDLINE.len() + 1).map_err(Error::Cmdline)?;
+        let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
         cmdline.insert_str(crate::kernel::CMDLINE).map_err(Error::Cmdline)?;
         let device_mgr = IoManager::new();
         let serial = Arc::new(Mutex::new(
@@ -185,7 +185,7 @@ impl VMM {
         Ok(())
     }
 
-    pub async fn configure_net_device(
+    pub fn configure_net_device(
         &mut self,
     ) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
@@ -206,7 +206,7 @@ impl VMM {
         };
 
 
-        let mut env = Env {
+            let mut env = Env {
             mem: Arc::new(self.guest_memory.clone()),
             event_mgr: &mut self.event_mgr,
             mmio_mgr: &mut self.device_mgr,
@@ -273,9 +273,9 @@ impl VMM {
     pub fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         self.configure_allocators(config.mem_size_mb)?;
+        self.configure_io()?;
         self.configure_net_device()?;
         let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path), &self.cmdline)?;
-        self.configure_io()?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
