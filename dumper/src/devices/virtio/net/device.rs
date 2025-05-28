@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
 use std::borrow::{Borrow, BorrowMut};
+use std::net::Ipv4Addr;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
@@ -11,7 +12,8 @@ use vm_device::bus::MmioAddress;
 use vm_device::device_manager::MmioManager;
 use vm_device::{DeviceMmio, MutDeviceMmio};
 use vm_memory::{GuestAddressSpace, GuestMemoryMmap};
-
+use crate::devices::virtio::net::bridge::Bridge;
+use crate::devices::virtio::net::iptables::iptables_ip_masq;
 use super::super::features::{VIRTIO_F_IN_ORDER, VIRTIO_F_RING_EVENT_IDX, VIRTIO_F_VERSION_1};
 use super::super::net::features::*;
 use super::super::net::{Error, NetArgs, Result, NET_DEVICE_ID, VIRTIO_NET_HDR_SIZE};
@@ -29,16 +31,22 @@ where
     mem: Arc<GuestMemoryMmap>,
     cfg: CommonConfig<M>,
     tap_name: String,
+    iface_host_addr: Ipv4Addr,
+    netmask: Ipv4Addr,
+    iface_guest_addr: Ipv4Addr,
 }
 
 impl<M> Net<M>
 where
     M: GuestAddressSpace + Clone + Send + Sync + 'static,
 {
-    pub fn new<B>(
+    pub async fn new<B>(
         mem: Arc<GuestMemoryMmap>,
-        env: &mut Env<M, B>,
+        env: &mut Env<'_, M, B>,
         args: &NetArgs,
+        iface_host_addr: Ipv4Addr,
+        netmask: Ipv4Addr,
+        iface_guest_addr: Ipv4Addr,
     ) -> Result<Arc<Mutex<Self>>>
     where
     // We're using this (more convoluted) bound so we can pass both references and smart
@@ -71,12 +79,47 @@ where
 
         let common_cfg = CommonConfig::new(virtio_cfg, env).map_err(Error::Virtio)?;
 
+
+        let bridge_name = "br0";
+        let bridge = Bridge::new(bridge_name).await.unwrap();
+
+        bridge
+            .set_addr(iface_host_addr, netmask)
+            .await
+            .unwrap();
+
+        bridge
+            .attach_link(args.tap_name.clone())
+            .await
+            .unwrap();
+        println!(
+            "attached link {:?} to bridge {}",
+            args.tap_name,
+            bridge_name
+        );
+
+        bridge.set_up().await.unwrap();
+        println!("bridge {} set UP", bridge_name);
+
+        // Get internet access
+        iptables_ip_masq(iface_host_addr & netmask, netmask, bridge_name.into());
+
         let net = Arc::new(Mutex::new(Net {
             mem,
             cfg: common_cfg,
             tap_name: args.tap_name.clone(),
+            iface_host_addr,
+            netmask,
+            iface_guest_addr,
         }));
 
+        let ip_pnp_param: String = format!(
+            "ip={}::{}:{}::eth0:off:1.1.1.1",
+            iface_guest_addr, iface_host_addr, netmask
+        );
+        
+        env.kernel_cmdline.insert_str(ip_pnp_param.as_str()).expect("TODO: panic message");
+        
         env.register_mmio_device(net.clone())
             .map_err(Error::Virtio)?;
 

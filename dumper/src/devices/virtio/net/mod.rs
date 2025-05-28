@@ -6,8 +6,15 @@ mod device;
 mod queue_handler;
 mod simple_handler;
 pub mod tap;
+mod bridge;
+mod iptables;
 
 pub use device::Net;
+
+pub fn xx_netmask_width<const SZ: usize>(netmask: [u8; SZ]) -> u8 {
+    netmask.iter().map(|x| x.count_ones() as u8).sum()
+}
+
 
 // TODO: Move relevant defines to vm-virtio crate.
 

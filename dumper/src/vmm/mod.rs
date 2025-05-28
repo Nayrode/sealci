@@ -2,6 +2,7 @@ use std::{
     io, os::fd::{AsRawFd, RawFd}, path::PathBuf, sync::{Arc, Mutex}
 };
 use std::fmt::Pointer;
+use std::net::Ipv4Addr;
 use std::ops::DerefMut;
 
 mod irq_allocator;
@@ -186,7 +187,7 @@ impl VMM {
         Ok(())
     }
 
-    pub fn configure_net_device(
+    pub async fn configure_net_device(
         &mut self,
     ) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
@@ -222,11 +223,7 @@ impl VMM {
             tap_name: "tap0".to_string()
         };
 
-        let net = Net::new(
-            mem,
-            &mut env,
-            &net_args,
-        ).unwrap();
+        let net = Net::new(mem, &mut env, &net_args, Ipv4Addr::new(192,168,1,1), Ipv4Addr::new(255,255,255,0, ), Ipv4Addr::new(192,168,1,2)).await.unwrap();
 
         self.net_devices.push(net);
 
@@ -281,11 +278,11 @@ impl VMM {
         }
     }
 
-    pub fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
+    pub async fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         self.configure_allocators(config.mem_size_mb)?;
         self.configure_io()?;
-        self.configure_net_device()?;
+        self.configure_net_device().await?;
         let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path), &self.cmdline)?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
