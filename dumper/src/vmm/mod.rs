@@ -2,6 +2,7 @@ use std::{
     io, os::fd::{AsRawFd, RawFd}, path::PathBuf, sync::{Arc, Mutex}
 };
 use std::fmt::Pointer;
+use std::ops::DerefMut;
 
 mod irq_allocator;
 use std::thread;
@@ -57,7 +58,7 @@ pub struct VMM {
     address_allocator: Option<AddressAllocator>,
     irq_allocator: IrqAllocator,
     event_mgr: EventMgr,
-    device_mgr: IoManager,
+    device_mgr: Arc<Mutex<IoManager>>,
     cmdline: Cmdline,
     serial: Arc<Mutex<DumperSerial>>,
     epoll: EpollContext,
@@ -69,7 +70,7 @@ impl VMM {
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
         cmdline.insert_str(crate::kernel::CMDLINE).map_err(Error::Cmdline)?;
-        let device_mgr = IoManager::new();
+        let device_mgr = Arc::new(Mutex::new(IoManager::new()));
         let serial = Arc::new(Mutex::new(
             DumperSerial::new().map_err(Error::SerialCreation)?,
         ));
@@ -157,7 +158,7 @@ impl VMM {
             .map_err(Error::KvmIoctl)?;
 
         for index in 0..num_vcpus {
-            let vcpu = Vcpu::new(&self.vm_fd, index.into(),self.serial.clone()).map_err(Error::Vcpu)?;
+            let vcpu = Vcpu::new(&self.vm_fd, index.into(),self.serial.clone(), self.device_mgr.clone()).map_err(Error::Vcpu)?;
             // Set CPUID.
             let mut vcpu_cpuid = base_cpuid.clone();
             cpuid::filter_cpuid(
@@ -205,11 +206,12 @@ impl VMM {
             gsi: irq,
         };
 
+        let mut guard = self.device_mgr.lock().unwrap();
 
-            let mut env = Env {
+        let mut env = Env {
             mem: Arc::new(self.guest_memory.clone()),
             event_mgr: &mut self.event_mgr,
-            mmio_mgr: &mut self.device_mgr,
+            mmio_mgr: guard.deref_mut(),
             mmio_cfg,
             vm_fd: self.vm_fd.clone(),
             kernel_cmdline: &mut self.cmdline,
