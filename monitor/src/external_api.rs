@@ -1,7 +1,5 @@
-use crate::config::{Config, SingleConfig};
 use crate::constants::{CONFIG_NOT_FOUND, INVALID_EVENT_ERROR, MISSING_CONFIG, VALID_EVENTS};
 use crate::file_utils::process_multipart_form;
-use crate::thread_utils::{manage_threads, RequestType};
 use actix_multipart::Multipart;
 use actix_web::web::Data;
 use actix_web::{delete, get, post, put, web, Error, HttpResponse, Responder, Result};
@@ -11,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinSet;
 
-pub struct AppState {
+pub struct App {
     pub(crate) configs: Arc<RwLock<Config>>,
 }
 
@@ -75,7 +73,7 @@ pub async fn add_configuration(
         Some(actions_path) => actions_path,
         None => return HttpResponse::BadRequest().json(MISSING_CONFIG),
     };
-    let single_config = SingleConfig {
+    let single_config = GithubRepository {
         event: result.new_config.event,
         repo_owner: result.new_config.repo_owner,
         repo_name: result.new_config.repo_name,

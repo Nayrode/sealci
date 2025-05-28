@@ -13,3 +13,7 @@ pub const MISSING_CONFIG: &'static str = "Missing config data or file";
 pub const FILE_CREATION_ERROR: &'static str = "Failed to create or overwrite file";
 pub const DIRECTORY_CREATION_ERROR: &'static str = "Failed to create directory";
 pub const INVALID_EVENT_ERROR: &'static str = "Invalid event";
+pub const GITHUB_API_URL: &'static str = "https://api.github.com/repos";
+
+// Use a config var
+pub const TOKEN: &'static str = "https://api.github.com/repos";
