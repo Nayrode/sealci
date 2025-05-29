@@ -60,6 +60,7 @@ pub async fn add_configuration(
             form.repository_name.into_inner(),
             action_file,
             form.events.into_inner(),
+            form.github_token.into_inner(),
         )
         .await
     {

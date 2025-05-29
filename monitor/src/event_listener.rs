@@ -23,6 +23,8 @@ pub struct Listener {
     controller_client: Arc<ControllerClient>,
     #[serde(skip)]
     listener_handles: Mutex<JoinSet<()>>,
+    #[serde(skip)]
+    github_token: String,
 }
 
 impl Listener {
@@ -33,6 +35,7 @@ impl Listener {
         actions_file: Arc<File>,
         github_client: Arc<GitHubClient>,
         controller_client: Arc<ControllerClient>,
+        github_token: String,
     ) -> Self {
         let repo_url = format!("https://github.com/{}/{}", repo_owner, repo_name);
 
@@ -50,19 +53,26 @@ impl Listener {
             github_client,
             controller_client,
             listener_handles: listerner_handles,
+            github_token,
         }
     }
 
     pub async fn listen_to_commits(&self) -> Result<(), Error> {
         let last_commit = self
             .github_client
-            .get_latest_commit(&self.repo_owner, &self.repo_name, None)
+            .get_latest_commit(
+                self.repo_owner.clone(),
+                self.repo_name.clone(),
+                self.github_token.clone(),
+                None,
+            )
             .await?;
 
         info!("Last commit found: {}", last_commit);
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
+        let github_token = self.github_token.clone();
         let repo_url = self.repo_url.clone();
         let file = self.actions_file.read().unwrap().clone();
         let github_client = self.github_client.clone();
@@ -72,10 +82,14 @@ impl Listener {
             let mut last_commit = last_commit;
             loop {
                 sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
-                info!("{}/{} - Checking for new commits...", repo_owner, repo_name);
 
                 match github_client
-                    .get_latest_commit(&repo_owner, &repo_name, None)
+                    .get_latest_commit(
+                        repo_owner.clone(),
+                        repo_name.clone(),
+                        github_token.clone(),
+                        None,
+                    )
                     .await
                 {
                     Ok(current_commit) => {
@@ -107,7 +121,11 @@ impl Listener {
     pub async fn listen_to_pull_requests(&self) -> Result<(), Error> {
         let last_pull_requests = self
             .github_client
-            .get_pull_requests(&self.repo_owner, &self.repo_name)
+            .get_pull_requests(
+                self.repo_owner.clone(),
+                self.repo_name.clone(),
+                self.github_token.clone(),
+            )
             .await?;
         let last_pr = last_pull_requests
             .get(0)
@@ -116,6 +134,7 @@ impl Listener {
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
+        let github_token = self.github_token.clone();
         let repo_url = self.repo_url.clone();
         let file = self.actions_file.read().unwrap().clone();
         let github_client = self.github_client.clone();
@@ -126,13 +145,9 @@ impl Listener {
             let mut last_pr = last_pr;
             loop {
                 sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
-                info!(
-                    "{}/{} - Checking for new pull requests...",
-                    repo_owner, repo_name
-                );
 
                 match github_client
-                    .get_pull_requests(&repo_owner, &repo_name)
+                    .get_pull_requests(repo_owner.clone(), repo_name.clone(), github_token.clone())
                     .await
                 {
                     Ok(current_pull_requests) => {
