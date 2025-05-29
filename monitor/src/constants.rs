@@ -2,7 +2,7 @@ pub const SERVER_ADDRESS: &'static str = "0.0.0.0:8080";
 
 // pub constants for field names, file paths and event types
 
-pub const EVENT: &'static str = "event";
+pub const EVENT: &'static str = "events";
 pub const REPO_OWNER: &'static str = "repo_owner";
 pub const REPO_NAME: &'static str = "repo_name";
 pub const GITHUB_TOKEN: &'static str = "github_token";

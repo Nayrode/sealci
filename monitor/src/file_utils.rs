@@ -1,6 +1,7 @@
+use crate::common::GitEvent;
 use crate::constants::{
-    ACTIONS_DIR, DIRECTORY_CREATION_ERROR, EVENT, FILE_CREATION_ERROR, GITHUB_TOKEN, REPO_NAME,
-    REPO_OWNER,
+    ACTIONS_DIR, DIRECTORY_CREATION_ERROR, EVENT, FILE_CREATION_ERROR, GITHUB_TOKEN,
+    INVALID_EVENT_ERROR, REPO_NAME, REPO_OWNER, VALID_EVENTS,
 };
 use actix_multipart::Multipart;
 use actix_web::Error;
@@ -12,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Deserialize, Debug)]
 pub struct NewConfig {
-    pub(crate) event: String,
+    pub(crate) events: Vec<GitEvent>,
     pub(crate) repo_owner: String,
     pub(crate) repo_name: String,
     pub(crate) github_token: String,
@@ -21,7 +22,7 @@ pub struct NewConfig {
 #[derive(Debug)]
 pub struct MultipartResult {
     pub(crate) new_config: NewConfig,
-    pub(crate) actions_file_path: Option<String>,
+    pub(crate) actions_file: File,
 }
 
 // Helper function to create a directory if it doesn't exist
@@ -41,33 +42,33 @@ fn create_directory_if_not_exists(path: &Path) -> actix_web::Result<(), Error> {
 async fn process_file_upload(
     field: &mut actix_multipart::Field,
     filename: &str,
-) -> actix_web::Result<String, Error> {
+) -> actix_web::Result<File, Error> {
     let filepath = PathBuf::from(format!("{}{}", ACTIONS_DIR, filename));
     create_directory_if_not_exists(&filepath)?;
 
     let mut file = File::create(&filepath).map_err(|e| {
         actix_web::error::ErrorInternalServerError(format!("{}: {}", FILE_CREATION_ERROR, e))
     })?;
+
     while let Some(chunk) = field.try_next().await? {
         file.write_all(&chunk).map_err(|e| {
             actix_web::error::ErrorInternalServerError(format!("Failed to write to file: {}", e))
         })?;
     }
 
-    Ok(filepath.to_string_lossy().to_string())
+    Ok(file)
 }
 
 pub async fn process_multipart_form(
     mut payload: Multipart,
 ) -> actix_web::Result<MultipartResult, Error> {
     let mut new_config = NewConfig {
-        event: String::new(),
+        events: Vec::new(),
         repo_owner: String::new(),
         repo_name: String::new(),
         github_token: String::new(),
     };
-    let mut actions_file_path: Option<String> = None;
-
+    let mut actions_file: File;
     // Iterate through multipart fields
     while let Some(mut field) = payload.try_next().await? {
         let content_disposition = field.content_disposition().unwrap();
@@ -76,7 +77,7 @@ pub async fn process_multipart_form(
 
         // If there is a file
         if let Some(filename) = filename {
-            actions_file_path = Some(process_file_upload(&mut field, &filename).await?);
+            actions_file = process_file_upload(&mut field, &filename).await?;
         }
         // If it is a field
         else if let Some(field_name) = field_name {
@@ -84,22 +85,22 @@ pub async fn process_multipart_form(
             while let Some(chunk) = field.try_next().await? {
                 value.extend_from_slice(&chunk);
             }
-            let value_str = String::from_utf8(value).unwrap();
+
+            let field_value = String::from_utf8(value).unwrap();
 
             // Update config fields
             match field_name.as_str() {
                 EVENT => {
-                    crate::external_api::validate_event(&value_str)?;
-                    new_config.event = value_str;
+                    new_config.events = GitEvent::try_from(field_value)?;
                 }
                 REPO_OWNER => {
-                    new_config.repo_owner = value_str;
+                    new_config.repo_owner = field_value;
                 }
                 REPO_NAME => {
-                    new_config.repo_name = value_str;
+                    new_config.repo_name = field_value;
                 }
                 GITHUB_TOKEN => {
-                    new_config.github_token = value_str;
+                    new_config.github_token = field_value;
                 }
                 _ => {}
             }
@@ -108,6 +109,18 @@ pub async fn process_multipart_form(
 
     Ok(MultipartResult {
         new_config,
-        actions_file_path,
+        actions_file,
     })
+}
+
+// Helper function to validate event
+pub(crate) fn validate_event(event: &str) -> Result<(), Error> {
+    if VALID_EVENTS.contains(&event) {
+        Ok(())
+    } else {
+        Err(actix_web::error::ErrorBadRequest(format!(
+            "{}: {} - valid events are: commit, pull_request, *",
+            INVALID_EVENT_ERROR, event
+        )))
+    }
 }

@@ -1,73 +1,71 @@
-use crate::error;
-use crate::{controller::ControllerClient, error::Error};
+use crate::common::GitEvent;
 use crate::github::GitHubClient;
+use crate::{controller::ControllerClient, error::Error};
+use std::fs::File;
 use std::sync::Arc;
-use tokio::{
-    spawn,
-    task::JoinHandle,
-    time::{sleep, Duration},
-};
+use tokio::sync::Mutex;
+use tokio::task::JoinSet;
+use tokio::time::{sleep, Duration};
 use tracing::{error, info};
 
-use std::path::Path;
-
+#[derive(serde::Serialize)]
 pub struct Listener {
     pub repo_owner: String,
     pub repo_name: String,
     pub repo_url: String,
-    pub event: String,
-    pub actions_path: Box<Path>,
+    pub events: Vec<GitEvent>,
+    #[serde(skip)]
+    pub actions_file: Arc<File>,
+    #[serde(skip)]
     pub github_client: Arc<GitHubClient>,
+    #[serde(skip)]
     pub controller_client: Arc<ControllerClient>,
+    #[serde(skip)]
+    listener_handles: Mutex<JoinSet<()>>,
 }
 
 impl Listener {
     pub fn new(
         repo_owner: String,
         repo_name: String,
-        event: String,
-        actions_path: Box<Path>,
-        github_client: GitHubClient,
-        controller_client: ControllerClient,
+        events: Vec<GitEvent>,
+        actions_file: File,
+        github_client: Arc<GitHubClient>,
+        controller_client: Arc<ControllerClient>,
     ) -> Self {
         let repo_url = format!("https://github.com/{}/{}", repo_owner, repo_name);
-
+        let actions_file = Arc::new(actions_file);
+        
         // Wrap the GitHubClient and ControllerClient in Arc for shared ownership
-        let github_client = Arc::new(github_client);
-        let controller_client = Arc::new(controller_client);
+        let listerner_handles = Mutex::new(JoinSet::new());
         Listener {
             repo_owner,
             repo_name,
             repo_url,
-            event,
-            actions_path,
+            events,
+            actions_file,
             github_client,
             controller_client,
+            listener_handles: listerner_handles,
         }
     }
 
-    pub async fn listen_to_commits(&self) -> Result<JoinHandle<()>, Error> {
-        let last_commit = match self
+    pub async fn listen_to_commits(&self) -> Result<(), Error> {
+        let last_commit = self
             .github_client
             .get_latest_commit(&self.repo_owner, &self.repo_name, None)
-            .await
-        {
-            Ok(val) => val,
-            Err(e) => {
-                error!("Error fetching the latest commit: {}", e);
-                return Err(error::Error::Error);
-            }
-        };
+            .await?;
+
         info!("Last commit found: {}", last_commit);
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
         let repo_url = self.repo_url.clone();
-        let actions_path = self.actions_path.clone();
+        let file = self.actions_file.clone();
         let github_client = self.github_client.clone();
         let controller_client = self.controller_client.clone();
-
-        let handle = spawn(async move {
+        let mut listener_handles = self.listener_handles.lock().await;
+        listener_handles.spawn(async move {
             let mut last_commit = last_commit;
             loop {
                 sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
@@ -86,46 +84,42 @@ impl Listener {
                             last_commit = current_commit;
 
                             if let Err(e) = controller_client
-                                .send_to_controller(&repo_url, &actions_path)
+                                .send_to_controller(&repo_url, file.as_ref())
                                 .await
                             {
                                 error!("Error sending to controller: {}", e);
                             }
                         }
                     }
-                    Err(e) => {
-                        error!("Error fetching the latest commit: {}", e);
+                    Err(_) => {
+                        error!("Error fetching the latest commit",);
                     }
                 }
             }
         });
-        Ok(handle)
+
+        Ok(())
     }
 
-    pub async fn listen_to_pull_requests(
-        &self,
-    ) -> Result<JoinHandle<()>, Box<dyn Error + Send + Sync>> {
+    pub async fn listen_to_pull_requests(&self) -> Result<(), Error> {
         let last_pull_requests = self
             .github_client
             .get_pull_requests(&self.repo_owner, &self.repo_name)
             .await?;
         let last_pr = last_pull_requests
             .get(0)
-            .ok_or_else(|| "No pull requests found".to_string())?
+            .ok_or(Error::NoPullRequestFound)?
             .to_owned();
-        info!(
-            "{}/{} - Found pull request: {}",
-            self.repo_owner, self.repo_name, last_pr.title
-        );
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
         let repo_url = self.repo_url.clone();
-        let actions_path = self.actions_path.clone();
+        let file = self.actions_file.clone();
         let github_client = self.github_client.clone();
         let controller_client = self.controller_client.clone();
+        let mut listener_handles = self.listener_handles.lock().await;
 
-        let handle = spawn(async move {
+        listener_handles.spawn(async move {
             let mut last_pr = last_pr;
             loop {
                 sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
@@ -147,7 +141,7 @@ impl Listener {
                                 );
                                 last_pr = current_pr.clone(); // Update the last PR ID
                                 if let Err(e) = controller_client
-                                    .send_to_controller(&repo_url, &actions_path)
+                                    .send_to_controller(&repo_url, file.as_ref())
                                     .await
                                 {
                                     error!("Error sending to controller: {}", e);
@@ -155,13 +149,44 @@ impl Listener {
                             }
                         }
                     }
-                    Err(e) => {
+                    Err(_) => {
                         // Handle errors (such as network issues or API problems)
-                        error!("Error fetching the latest pull request: {}", e);
+                        error!("Error fetching the latest pull request");
                     }
                 };
             }
         });
-        Ok(handle)
+        Ok(())
+    }
+
+    pub async fn listen_to_all(&mut self) -> Result<(), Error> {
+        self.listen_to_commits().await?;
+        self.listen_to_pull_requests().await?;
+        Ok(())
+    }
+
+    pub async fn start(&mut self) -> Result<(), Error> {
+        // Check if the listener should listen to all events
+        // If it does, we set it to listen to all events
+        // We prevent adding the same listener multiple times
+
+        if self.events.contains(&GitEvent::All) {
+            self.listen_to_all().await?;
+        } else {
+            for e in &self.events {
+                match e {
+                    GitEvent::Commit => self.listen_to_commits().await?,
+                    GitEvent::PullRequest => self.listen_to_pull_requests().await?,
+                    GitEvent::All => (),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn stop(&self) {
+        // Cancel all listener tasks
+        let mut listener_handles = self.listener_handles.lock().await;
+        listener_handles.abort_all();
     }
 }
