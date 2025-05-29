@@ -2,7 +2,8 @@ use crate::common::GitEvent;
 use crate::github::GitHubClient;
 use crate::{controller::ControllerClient, error::Error};
 use std::fs::File;
-use std::sync::Arc;
+use std::io::Read;
+use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
@@ -10,16 +11,16 @@ use tracing::{error, info};
 
 #[derive(serde::Serialize)]
 pub struct Listener {
-    pub repo_owner: String,
-    pub repo_name: String,
-    pub repo_url: String,
-    pub events: Vec<GitEvent>,
+    repo_owner: String,
+    repo_name: String,
+    repo_url: String,
+    events: RwLock<Vec<GitEvent>>,
     #[serde(skip)]
-    pub actions_file: Arc<File>,
+    actions_file: RwLock<Arc<File>>,
     #[serde(skip)]
-    pub github_client: Arc<GitHubClient>,
+    github_client: Arc<GitHubClient>,
     #[serde(skip)]
-    pub controller_client: Arc<ControllerClient>,
+    controller_client: Arc<ControllerClient>,
     #[serde(skip)]
     listener_handles: Mutex<JoinSet<()>>,
 }
@@ -29,15 +30,17 @@ impl Listener {
         repo_owner: String,
         repo_name: String,
         events: Vec<GitEvent>,
-        actions_file: File,
+        actions_file: Arc<File>,
         github_client: Arc<GitHubClient>,
         controller_client: Arc<ControllerClient>,
     ) -> Self {
         let repo_url = format!("https://github.com/{}/{}", repo_owner, repo_name);
-        let actions_file = Arc::new(actions_file);
-        
+
+        let events = RwLock::new(events);
+        let actions_file = RwLock::new(actions_file);
         // Wrap the GitHubClient and ControllerClient in Arc for shared ownership
         let listerner_handles = Mutex::new(JoinSet::new());
+
         Listener {
             repo_owner,
             repo_name,
@@ -61,7 +64,7 @@ impl Listener {
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
         let repo_url = self.repo_url.clone();
-        let file = self.actions_file.clone();
+        let file = self.actions_file.read().unwrap().clone();
         let github_client = self.github_client.clone();
         let controller_client = self.controller_client.clone();
         let mut listener_handles = self.listener_handles.lock().await;
@@ -114,7 +117,7 @@ impl Listener {
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
         let repo_url = self.repo_url.clone();
-        let file = self.actions_file.clone();
+        let file = self.actions_file.read().unwrap().clone();
         let github_client = self.github_client.clone();
         let controller_client = self.controller_client.clone();
         let mut listener_handles = self.listener_handles.lock().await;
@@ -159,21 +162,21 @@ impl Listener {
         Ok(())
     }
 
-    pub async fn listen_to_all(&mut self) -> Result<(), Error> {
+    pub async fn listen_to_all(&self) -> Result<(), Error> {
         self.listen_to_commits().await?;
         self.listen_to_pull_requests().await?;
         Ok(())
     }
 
-    pub async fn start(&mut self) -> Result<(), Error> {
+    pub async fn start(&self) -> Result<(), Error> {
         // Check if the listener should listen to all events
         // If it does, we set it to listen to all events
         // We prevent adding the same listener multiple times
-
-        if self.events.contains(&GitEvent::All) {
+        let events = self.events.read().unwrap().clone();
+        if events.contains(&GitEvent::All) {
             self.listen_to_all().await?;
         } else {
-            for e in &self.events {
+            for e in &events {
                 match e {
                     GitEvent::Commit => self.listen_to_commits().await?,
                     GitEvent::PullRequest => self.listen_to_pull_requests().await?,
@@ -188,5 +191,31 @@ impl Listener {
         // Cancel all listener tasks
         let mut listener_handles = self.listener_handles.lock().await;
         listener_handles.abort_all();
+    }
+
+    pub async fn update(
+        &self,
+        events: Option<Vec<GitEvent>>,
+        actions_file: Option<File>,
+    ) -> Result<(), Error> {
+        self.stop().await; // Stop the listener before updating
+        if let Some(new_events) = events {
+            *self.events.write().unwrap() = new_events;
+        }
+        if let Some(new_actions_file) = actions_file {
+            let new_actions_file = Arc::new(new_actions_file);
+            *self.actions_file.write().unwrap() = new_actions_file;
+        }
+        self.start().await?;
+        Ok(())
+    }
+
+    pub async fn action_file_to_string(&self) -> Result<String, Error> {
+        let file = self.actions_file.read().unwrap();
+        let mut content = String::new();
+        file.as_ref()
+            .read_to_string(&mut content)
+            .map_err(Error::FileReadError)?;
+        Ok(content)
     }
 }

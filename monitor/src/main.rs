@@ -1,14 +1,13 @@
 mod app;
+mod common;
 mod config;
 mod constants;
 mod controller;
+mod error;
 mod event_listener;
 mod external_api;
-mod file_utils;
 mod github;
-mod error;
 mod service;
-mod common;
 
 use clap::Parser;
 use config::Config;

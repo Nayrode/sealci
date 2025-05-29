@@ -5,17 +5,12 @@ use std::io::Read;
 use tracing::{debug, info};
 
 pub struct ControllerClient {
-    http_client: Client,
     controller_url: String,
 }
 
 impl ControllerClient {
     pub fn new(controller_url: String) -> Self {
-        let http_client = Client::new();
-        ControllerClient {
-            http_client,
-            controller_url,
-        }
+        ControllerClient { controller_url }
     }
 
     pub async fn send_to_controller(
