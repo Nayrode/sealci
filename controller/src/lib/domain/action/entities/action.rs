@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use thiserror::Error;
 
+use crate::domain::log::entities::log::Log;
+
 #[derive(Debug, Serialize, Clone, PartialEq, Deserialize)]
 pub enum ActionType {
     Container,
@@ -114,6 +116,7 @@ pub struct Action {
     #[sqlx(default)]
     pub commands: Vec<String>,
     pub status: ActionStatus,
+    pub logs: Option<Vec<Log>>,
 }
 
 impl Action {
@@ -125,6 +128,7 @@ impl Action {
         r#type: ActionType,
         container_uri: String,
         commands: Vec<String>,
+        logs: Vec<Log>
     ) -> Self {
         Self {
             id,
@@ -134,6 +138,7 @@ impl Action {
             r#type,
             container_uri,
             commands: commands,
+            logs: Some(logs)
         }
     }
 }

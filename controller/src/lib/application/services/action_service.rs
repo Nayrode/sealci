@@ -66,5 +66,8 @@ impl<R, C> ActionService for ActionServiceImpl<R, C> where R: ActionRepository +
     ) -> Result<Action, ActionError> {
         self.repository.update_status(action_id, status).await
     }
-    
+
+    async fn append_log(&self, action_id: i64, log: String) -> Result<(), ActionError> {
+        self.repository.append_log(action_id, log).await
+    }
 }

@@ -41,6 +41,7 @@ impl ActionRepository for PostgresActionRepository {
                 container_uri: row.container_uri,
                 status: row.status.into(),
                 commands: vec![],
+                logs: None,
             })
             .map_err(ActionError::DatabaseError)
     }
@@ -86,6 +87,7 @@ impl ActionRepository for PostgresActionRepository {
             r#type: action_type,
             status,
             commands: vec![row.command],
+            logs: None,
         };
 
         Ok(action)
@@ -135,6 +137,7 @@ impl ActionRepository for PostgresActionRepository {
                 r#type: action_type,
                 status,
                 commands: Vec::new(),
+                logs: None,
             });
 
             action_entry.commands.push(row.command);
@@ -167,7 +170,20 @@ impl ActionRepository for PostgresActionRepository {
                 container_uri: row.container_uri,
                 status: row.status.into(),
                 commands: vec![],
+                logs: None,
             })
             .map_err(ActionError::DatabaseError)
+    }
+
+    async fn append_log(&self, action_id: i64, log: String) -> Result<(), ActionError> {
+        sqlx::query!(
+            r#"INSERT INTO logs (action_id, data) VALUES ($1, $2)"#,
+            action_id,
+            log
+        )
+        .execute(&self.postgres.get_pool())
+        .await
+        .map_err(ActionError::DatabaseError)?;
+        Ok(())
     }
 }

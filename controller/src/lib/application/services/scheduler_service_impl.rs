@@ -1,41 +1,57 @@
-use crate::{
-    application::ports::{action_service::ActionService, scheduler_service::SchedulerService}, domain::{pipeline::ports::pipeline_repository::{self, PipelineRepository}, scheduler::{entities::scheduler::SchedulerError, services::scheduler_client::SchedulerClient}}, infrastructure::{grpc::grpc_scheduler_client::GrpcSchedulerClient, repositories::{action_repository::PostgresActionRepository, pipeline_repository::PostgresPipelineRepository}},
-};
 use crate::domain::action::entities::action::{
-    ActionRequest as DomainActionRequest,
-    ExecutionContext as ActionContext
-}; 
+    ActionRequest as DomainActionRequest, ExecutionContext as ActionContext,
+};
+use crate::{
+    application::ports::{action_service::ActionService, scheduler_service::SchedulerService},
+    domain::{
+        pipeline::ports::pipeline_repository::PipelineRepository,
+        scheduler::{
+            entities::scheduler::SchedulerError, services::scheduler_client::SchedulerClient,
+        },
+    },
+    infrastructure::{
+        grpc::grpc_scheduler_client::GrpcSchedulerClient,
+        repositories::pipeline_repository::PostgresPipelineRepository,
+    },
+};
 use async_trait::async_trait;
 use futures::lock::Mutex;
+use std::sync::Arc;
 use tokio_stream::StreamExt;
 use tracing::info;
-use std::sync::Arc;
 
 use super::action_service::DefaultActionServiceImpl;
 
-pub type DefaultSchedulerServiceImpl = SchedulerServiceImpl<DefaultActionServiceImpl, GrpcSchedulerClient, PostgresPipelineRepository>;
+pub type DefaultSchedulerServiceImpl =
+    SchedulerServiceImpl<DefaultActionServiceImpl, GrpcSchedulerClient, PostgresPipelineRepository>;
 
 pub struct SchedulerServiceImpl<A, S, R>
 where
     A: ActionService + Send + Sync,
     S: SchedulerClient + Send + Sync,
-    R: PipelineRepository + Send + Sync,{
+    R: PipelineRepository + Send + Sync,
+{
     action_service: Arc<A>,
     scheduler_client: Arc<Mutex<S>>,
     pipeline_repository: Arc<R>,
 }
 
-impl<A,S,R> SchedulerServiceImpl<A,S,R>
+impl<A, S, R> SchedulerServiceImpl<A, S, R>
 where
     A: ActionService + Send + Sync,
     S: SchedulerClient + Send + Sync,
-    R: PipelineRepository + Send + Sync,{
+    R: PipelineRepository + Send + Sync,
+{
     pub fn new(
         action_service: Arc<A>,
         scheduler_client: Arc<Mutex<S>>,
         pipeline_repository: Arc<R>,
     ) -> Self {
-        Self { action_service, scheduler_client, pipeline_repository }
+        Self {
+            action_service,
+            scheduler_client,
+            pipeline_repository,
+        }
     }
 }
 
@@ -48,23 +64,28 @@ where
 {
     async fn execute_pipeline(&self, pipeline_id: i64) -> Result<(), SchedulerError> {
         // 1. Find actions by pipeline ID
-        let mut actions = self.action_service
+        let mut actions = self
+            .action_service
             .find_by_pipeline_id(pipeline_id)
             .await
             .map_err(|e| SchedulerError::Error(format!("Failed to find actions: {}", e)))?;
-        
-        let pipeline = self.pipeline_repository.find_by_id(pipeline_id).await.map_err(|e| SchedulerError::Error(format!("Failed to find pipeline: {}", e)))?;
+
+        let pipeline = self
+            .pipeline_repository
+            .find_by_id(pipeline_id)
+            .await
+            .map_err(|e| SchedulerError::Error(format!("Failed to find pipeline: {}", e)))?;
         let repo_url = pipeline.repository_url.clone();
         // 2. Sort actions by ID
         actions.sort_by_key(|action| action.id);
-        
+
         // 3. Lock the scheduler client
         let scheduler_client = self.scheduler_client.lock().await;
-        
+
         // 4. Execute each action
         for action in actions {
             info!("Scheduling action: {:?}", action.id);
-            
+
             // 5. Request creation to schedule the action
             let action_request = DomainActionRequest {
                 action_id: action.id as u32,
@@ -75,13 +96,13 @@ where
                 commands: action.commands.clone(),
                 repo_url: repo_url.clone(),
             };
-            
+
             // 6.Send the request to the scheduler and get a stream of responses
             let mut response_stream = scheduler_client
                 .schedule_action(action_request)
                 .await
                 .map_err(|e| SchedulerError::Error(format!("Failed to schedule action: {}", e)))?;
-            
+
             // 7. Treat the response stream
             while let Some(response) = response_stream.next().await {
                 match response {
@@ -89,17 +110,34 @@ where
                         // 8. Update the action status in the database
                         if let Some(result) = &action_response.result {
                             self.action_service
-                                .update_status(action_response.action_id as i64, &result.completion.to_string())
+                                .update_status(
+                                    action_response.action_id as i64,
+                                    &result.completion.to_string(),
+                                )
                                 .await
-                                .map_err(|e| SchedulerError::Error(format!("Failed to update action: {}", e)))?;
+                                .map_err(|e| {
+                                    SchedulerError::Error(format!("Failed to update action: {}", e))
+                                })?;
                         }
-                        // Stocker les logs si nécessaire
-                    },
-                    Err(e) => return Err(SchedulerError::Error(format!("Error from scheduler: {}", e))),
+                        let log_data = action_response.log.clone();
+
+                        self.action_service
+                            .append_log(action_response.action_id as i64, log_data)
+                            .await
+                            .map_err(|e| {
+                                SchedulerError::Error(format!("Failed to store log: {}", e))
+                            })?;
+                    }
+                    Err(e) => {
+                        return Err(SchedulerError::Error(format!(
+                            "Error from scheduler: {}",
+                            e
+                        )))
+                    }
                 }
             }
         }
-        
+
         Ok(())
     }
 }

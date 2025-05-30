@@ -1,19 +1,23 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::domain::action::entities::action::Action;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Pipeline {
     pub id: i64,
     pub name: String,
     pub repository_url: String,
+    pub actions: Vec<Action>,
 }
 
 impl Pipeline {
-    pub fn new(id: i64, repository_url: String, name: String) -> Self {
+    pub fn new(id: i64, repository_url: String, name: String, actions: Vec<Action>) -> Self {
         Self {
             id,
             repository_url,
             name,
+            actions,
         }
     }
 

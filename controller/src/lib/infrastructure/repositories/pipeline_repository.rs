@@ -21,34 +21,47 @@ impl PipelineRepository for PostgresPipelineRepository {
         repository_url: String,
         name: String,
     ) -> Result<Pipeline, PipelineError> {
-        let result = sqlx::query_as!(
-            Pipeline,
-            "INSERT INTO pipelines (repository_url, name) VALUES ($1, $2) RETURNING id, repository_url, name",
-            repository_url, name
+        let row = sqlx::query!(
+            "INSERT INTO pipelines (repository_url, name) VALUES ($1, $2)
+             RETURNING id, repository_url, name",
+            repository_url,
+            name
         )
         .fetch_one(&self.postgres.get_pool())
-        .await;
+        .await
+        .map_err(PipelineError::DatabaseError)?;
 
-        result
+        Ok(Pipeline {
+            id: row.id,
+            repository_url: row.repository_url,
+            name: row.name,
+            actions: vec![],
+        })
+    }
+
+    async fn find_all(&self) -> Result<Vec<Pipeline>, PipelineError> {
+        let rows = sqlx::query!(
+            "SELECT id, repository_url, name FROM pipelines"
+        )
+        .fetch_all(&self.postgres.get_pool())
+        .await
+        .map_err(PipelineError::DatabaseError)?;
+
+        let pipelines = rows
+            .into_iter()
             .map(|row| Pipeline {
                 id: row.id,
                 repository_url: row.repository_url,
                 name: row.name,
+                actions: vec![],
             })
-            .map_err(PipelineError::DatabaseError)
-    }
+            .collect();
 
-    async fn find_all(&self) -> Result<Vec<Pipeline>, PipelineError> {
-        let result = sqlx::query_as!(Pipeline, "SELECT id, repository_url, name FROM pipelines")
-            .fetch_all(&self.postgres.get_pool())
-            .await;
-
-        result.map_err(PipelineError::DatabaseError)
+        Ok(pipelines)
     }
 
     async fn find_by_id(&self, pipeline_id: i64) -> Result<Pipeline, PipelineError> {
-        let result = sqlx::query_as!(
-            Pipeline,
+        let result = sqlx::query!(
             "SELECT id, repository_url, name FROM pipelines WHERE id = $1",
             pipeline_id
         )
@@ -56,7 +69,12 @@ impl PipelineRepository for PostgresPipelineRepository {
         .await;
 
         match result {
-            Ok(pipeline) => Ok(pipeline),
+            Ok(row) => Ok(Pipeline {
+                id: row.id,
+                repository_url: row.repository_url,
+                name: row.name,
+                actions: vec![],
+            }),
             Err(sqlx::Error::RowNotFound) => Err(PipelineError::NotFound),
             Err(err) => Err(PipelineError::DatabaseError(err)),
         }

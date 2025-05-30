@@ -3,7 +3,6 @@ pub mod docs;
 pub mod domain;
 pub mod health;
 pub mod infrastructure;
-pub mod logs;
 pub mod parser;
 pub mod tests;
 pub mod server;

@@ -10,6 +10,7 @@ use controller::infrastructure::db::postgres::Postgres;
 use controller::infrastructure::grpc::grpc_scheduler_client::GrpcSchedulerClient;
 use controller::infrastructure::repositories::action_repository::PostgresActionRepository;
 use controller::infrastructure::repositories::command_repository::PostgresCommandRepository;
+use controller::infrastructure::repositories::log_repository::PostgresLogRepository;
 use controller::infrastructure::repositories::pipeline_repository::PostgresPipelineRepository;
 use controller::{docs, health};
 use dotenv::dotenv;
@@ -58,8 +59,9 @@ async fn main() -> std::io::Result<()> {
     let action_service = Arc::new(
         ActionServiceImpl::new(action_repository, command_service),
     );
-
     let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()));
+    
+    let log_repository = Arc::new(PostgresLogRepository::new(postgres.clone()));
     
     let scheduler_service =
     Arc::new(Mutex::new(SchedulerServiceImpl::new(
@@ -69,7 +71,7 @@ async fn main() -> std::io::Result<()> {
     )));
 
     let pipeline_service = Arc::new(
-        PipelineServiceImpl::new(pipeline_repository.clone(), action_service.clone(), scheduler_service.clone()),
+        PipelineServiceImpl::new(pipeline_repository.clone(), log_repository.clone(), action_service.clone(), scheduler_service.clone()),
     );
 
     info!("Listening on {}", addr_in);

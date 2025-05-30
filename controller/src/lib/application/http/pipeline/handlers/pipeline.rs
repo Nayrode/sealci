@@ -40,8 +40,13 @@ pub async fn get_pipelines(
     query: web::Query<PipelineQueryParams>,
 ) -> impl Responder {
     let verbose = query.verbose.unwrap_or(false);
-    let pipelines = pipeline_service.find_all(verbose).await;
-    HttpResponse::Ok().json(pipelines)
+    match pipeline_service.find_all(verbose).await {
+        Ok(pipelines) => HttpResponse::Ok().json(pipelines),
+        Err(e) => {
+            error!("Error fetching pipelines: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 #[get("/pipeline/{id}")]

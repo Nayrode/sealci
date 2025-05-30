@@ -19,4 +19,5 @@ pub trait ActionRepository: Send + Sync {
         action_id: i64,
         status: &String,
     ) -> Result<Action, ActionError>;
+    async fn append_log(&self, action_id: i64, log: String) -> Result<(), ActionError>;
 }
