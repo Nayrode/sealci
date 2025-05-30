@@ -1,10 +1,11 @@
-use std::{error::Error, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{web::Data, App as ActixApp, HttpServer};
 use tracing::info;
 
 use crate::{
     config::Config,
+    error::Error,
     external_api::{
         add_configuration, delete_configuration, doc, get_actions_file, get_configuration_by_id,
         get_configurations, update_configuration,
@@ -34,7 +35,7 @@ impl App {
         }
     }
 
-    pub async fn run(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self) -> Result<(), Error> {
         // Initialize the application, set up routes, etc.
         info!("Application is running...");
         let listener_service = self.listener_service.clone();
@@ -52,9 +53,11 @@ impl App {
                     .service(doc)
             }
         })
-        .bind(("0.0.0.0", self.config.port))?
+        .bind(("0.0.0.0", self.config.port))
+        .map_err(Error::ServerError)?
         .run()
-        .await?;
+        .await
+        .map_err(Error::ServerError)?;
         Ok(())
     }
 }

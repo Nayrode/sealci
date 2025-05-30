@@ -14,11 +14,10 @@ use config::Config;
 use tokio;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), error::Error> {
     dotenv::dotenv().ok();
     tracing_subscriber::fmt::init();
     let config = Config::parse();
     let app = app::App::new(config.clone());
-    app.run().await?;
-    Ok(())
+    app.run().await
 }
