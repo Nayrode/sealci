@@ -3,6 +3,7 @@ use std::fmt::Display;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Error {
+    Error(String),
     RequestError(reqwest::Error),
     NoCommitFound,
     NoPullRequestFound,
@@ -20,6 +21,7 @@ impl Display for Error {
             Error::NoListenerFound => write!(f, "No listener found"),
             Error::FaildToReadGitEvent => write!(f, "Failed to read Git event"),
             Error::FileReadError(e) => write!(f, "File read error: {}", e),
+            Error::Error(e) => write!(f, "Error: {}", e),
         }
     }
 }

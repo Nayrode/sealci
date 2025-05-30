@@ -1,6 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use actix_web::{web::Data, App as ActixApp, HttpServer};
+use tracing::info;
 
 use crate::{
     config::Config,
@@ -35,7 +36,7 @@ impl App {
 
     pub async fn run(&self) -> Result<(), Box<dyn Error>> {
         // Initialize the application, set up routes, etc.
-        println!("Application is running...");
+        info!("Application is running...");
         let listener_service = self.listener_service.clone();
         HttpServer::new({
             let listener_service = listener_service.clone();

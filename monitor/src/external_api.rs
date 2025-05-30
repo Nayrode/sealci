@@ -44,7 +44,7 @@ pub async fn add_configuration(
     MultipartForm(form): MultipartForm<CreateConfigForm>,
 ) -> impl Responder {
     // Get a reference to the file
-    let mut file_ref: &File = form.actions_file.file.as_file();
+    let file_ref: &File = form.actions_file.file.as_file();
 
     // Clone the file handle to get an owned File
     let mut action_file = match file_ref.try_clone() {
@@ -56,7 +56,7 @@ pub async fn add_configuration(
     if let Err(_) = action_file.seek(SeekFrom::Start(0)) {
         return HttpResponse::InternalServerError().body("Failed to seek file");
     }
-    
+
     let mut content = String::new();
     if let Err(_) = action_file.read_to_string(&mut content) {
         return HttpResponse::InternalServerError().body("Failed to read file content");
@@ -65,7 +65,7 @@ pub async fn add_configuration(
         return HttpResponse::BadRequest().body("Actions file is empty");
     }
     info!("Received actions file with content: {}", content);
-    
+
     let mut events: Vec<GitEvent> = Vec::new();
     events.push(form.events.into_inner());
     let action_file = Arc::new(action_file);
@@ -148,12 +148,12 @@ pub async fn get_actions_file(
     let id = path.into_inner();
     let config = match listener_service.get_listener(id).await {
         Ok(val) => val,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
     };
 
     let actions_file_content = match config.action_file_to_string().await {
-        Ok(_) => (),
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Ok(val) => val,
+        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
     };
     HttpResponse::Ok().body(actions_file_content)
 }
