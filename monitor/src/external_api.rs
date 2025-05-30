@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use crate::common::{CreateConfigForm, GitEvent, UpdateConfigForm};
@@ -7,9 +7,13 @@ use crate::event_listener::Listener;
 use crate::service::listener::ListenerService;
 use actix_multipart::form::MultipartForm;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
+use scalar_doc::scalar_actix::ActixDocumentation;
+use tracing::info;
 
 #[get("/configurations")]
-pub async fn get_configurations(listener_service: web::Data<ListenerService>) -> impl Responder {
+pub async fn get_configurations(
+    listener_service: web::Data<Arc<ListenerService>>,
+) -> impl Responder {
     let listeners = match listener_service.get_all_listeners().await {
         Ok(val) => val,
         Err(_) => return HttpResponse::InternalServerError().finish(),
@@ -23,7 +27,7 @@ pub async fn get_configurations(listener_service: web::Data<ListenerService>) ->
 
 #[get("/configurations/{id}")]
 pub async fn get_configuration_by_id(
-    listener_service: web::Data<ListenerService>,
+    listener_service: web::Data<Arc<ListenerService>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let id = path.into_inner();
@@ -36,11 +40,11 @@ pub async fn get_configuration_by_id(
 
 #[post("/configurations")]
 pub async fn add_configuration(
-    listener_service: web::Data<ListenerService>,
+    listener_service: web::Data<Arc<ListenerService>>,
     MultipartForm(form): MultipartForm<CreateConfigForm>,
 ) -> impl Responder {
     // Get a reference to the file
-    let file_ref: &File = form.actions_file.file.as_file();
+    let mut file_ref: &File = form.actions_file.file.as_file();
 
     // Clone the file handle to get an owned File
     let mut action_file = match file_ref.try_clone() {
@@ -52,20 +56,31 @@ pub async fn add_configuration(
     if let Err(_) = action_file.seek(SeekFrom::Start(0)) {
         return HttpResponse::InternalServerError().body("Failed to seek file");
     }
-
+    
+    let mut content = String::new();
+    if let Err(_) = action_file.read_to_string(&mut content) {
+        return HttpResponse::InternalServerError().body("Failed to read file content");
+    }
+    if content.is_empty() {
+        return HttpResponse::BadRequest().body("Actions file is empty");
+    }
+    info!("Received actions file with content: {}", content);
+    
+    let mut events: Vec<GitEvent> = Vec::new();
+    events.push(form.events.into_inner());
     let action_file = Arc::new(action_file);
     let listener = match listener_service
         .add_listener(
             form.repository_owner.into_inner(),
             form.repository_name.into_inner(),
             action_file,
-            form.events.into_inner(),
+            events,
             form.github_token.into_inner(),
         )
         .await
     {
         Ok(listener) => listener,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
     };
 
     HttpResponse::Created().json(listener.as_ref())
@@ -73,7 +88,7 @@ pub async fn add_configuration(
 
 #[put("/configurations/{id}")]
 pub async fn update_configuration(
-    listener_service: web::Data<ListenerService>,
+    listener_service: web::Data<Arc<ListenerService>>,
     MultipartForm(form): MultipartForm<UpdateConfigForm>,
     path: web::Path<String>,
 ) -> impl Responder {
@@ -115,7 +130,7 @@ pub async fn update_configuration(
 
 #[delete("/configurations/{id}")]
 pub async fn delete_configuration(
-    listener_service: web::Data<ListenerService>,
+    listener_service: web::Data<Arc<ListenerService>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let id = path.into_inner();
@@ -127,7 +142,7 @@ pub async fn delete_configuration(
 
 #[get("/configurations/{id}/actions-file")]
 pub async fn get_actions_file(
-    listener_service: web::Data<ListenerService>,
+    listener_service: web::Data<Arc<ListenerService>>,
     path: web::Path<String>,
 ) -> impl Responder {
     let id = path.into_inner();
@@ -141,4 +156,11 @@ pub async fn get_actions_file(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     HttpResponse::Ok().body(actions_file_content)
+}
+
+#[get("/scalar-doc")]
+async fn doc() -> impl Responder {
+    ActixDocumentation::new("Api Documentation title", "/openapi")
+        .theme(scalar_doc::Theme::Kepler)
+        .service()
 }

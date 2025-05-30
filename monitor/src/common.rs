@@ -28,7 +28,7 @@ impl TryFrom<String> for GitEvent {
 #[derive(Debug, MultipartForm)]
 pub struct CreateConfigForm {
     pub actions_file: TempFile,
-    pub events: Text<Vec<GitEvent>>,
+    pub events: Text<GitEvent>,
     pub repository_owner: Text<String>,
     pub repository_name: Text<String>,
     pub github_token: Text<String>,

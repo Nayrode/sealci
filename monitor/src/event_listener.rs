@@ -58,6 +58,8 @@ impl Listener {
     }
 
     pub async fn listen_to_commits(&self) -> Result<(), Error> {
+        info!("Searching commits....");
+
         let last_commit = self
             .github_client
             .get_latest_commit(
@@ -226,11 +228,17 @@ impl Listener {
     }
 
     pub async fn action_file_to_string(&self) -> Result<String, Error> {
-        let file = self.actions_file.read().unwrap();
-        let mut content = String::new();
-        file.as_ref()
-            .read_to_string(&mut content)
-            .map_err(Error::FileReadError)?;
-        Ok(content)
-    }
+            let file = self.actions_file.read().unwrap();
+            let mut content = String::new();
+
+            let mut file_ref = file.as_ref();
+            file_ref
+                .read_to_string(&mut content)
+                .map_err(Error::FileReadError)?;
+            if content.is_empty() {
+                info!("empty");
+            }
+            info!("Actions file content: {}", content);
+            Ok(content)
+        }
 }
