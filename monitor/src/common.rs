@@ -39,3 +39,15 @@ pub struct UpdateConfigForm {
     pub actions_file: Option<TempFile>,
     pub events: Option<Text<Vec<GitEvent>>>,
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+pub struct GitTag {
+    pub name: String,
+}
+
+impl PartialEq for GitTag {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+

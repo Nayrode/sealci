@@ -8,6 +8,7 @@ pub enum Error {
     NoCommitFound,
     NoPullRequestFound,
     NoListenerFound,
+    NoTagFound,
     FaildToReadGitEvent,
     FileReadError(std::io::Error),
     ServerError(std::io::Error),
@@ -24,6 +25,7 @@ impl Display for Error {
             Error::FileReadError(e) => write!(f, "File read error: {}", e),
             Error::Error(e) => write!(f, "Error: {}", e),
             Error::ServerError(e) => write!(f, "Server error: {}", e),
+            Error::NoTagFound => write!(f, "No tag found"),
         }
     }
 }

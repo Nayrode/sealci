@@ -178,6 +178,65 @@ impl Listener {
         });
         Ok(())
     }
+    
+    pub async fn listen_to_tags(&self) -> Result<(), Error> {
+            let tags = self
+                .github_client
+                .get_tags(
+                    self.repo_owner.clone(),
+                    self.repo_name.clone(),
+                    self.github_token.clone(),
+                )
+                .await?;
+            let last_tag = tags
+                .get(0)
+                .ok_or(Error::NoTagFound)?
+                .to_owned();
+    
+            let repo_owner = self.repo_owner.clone();
+            let repo_name = self.repo_name.clone();
+            let github_token = self.github_token.clone();
+            let repo_url = self.repo_url.clone();
+            let file = self.actions_file.read().unwrap().clone();
+            let github_client = self.github_client.clone();
+            let controller_client = self.controller_client.clone();
+            let mut listener_handles = self.listener_handles.lock().await;
+    
+            listener_handles.spawn(async move {
+                let mut last_pr = last_pr;
+                loop {
+                    sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
+    
+                    match github_client
+                        .get_pull_requests(repo_owner.clone(), repo_name.clone(), github_token.clone())
+                        .await
+                    {
+                        Ok(current_pull_requests) => {
+                            if let Some(current_pr) = current_pull_requests.get(0) {
+                                if last_pr.id != current_pr.id {
+                                    info!(
+                                        "{}/{} - New pull request found: {}",
+                                        repo_owner, repo_name, current_pr.title
+                                    );
+                                    last_pr = current_pr.clone(); // Update the last PR ID
+                                    if let Err(e) = controller_client
+                                        .send_to_controller(&repo_url, file.as_ref())
+                                        .await
+                                    {
+                                        error!("Error sending to controller: {}", e);
+                                    }
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Handle errors (such as network issues or API problems)
+                            error!("Error fetching the latest pull request");
+                        }
+                    };
+                }
+            });
+            Ok(())
+    }
 
     pub async fn listen_to_all(&self) -> Result<(), Error> {
         self.listen_to_commits().await?;
