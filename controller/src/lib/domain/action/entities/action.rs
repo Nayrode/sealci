@@ -48,8 +48,7 @@ impl From<String> for ActionType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum ActionStatus {
     Pending,
     Running,
@@ -68,6 +67,15 @@ impl ActionStatus {
     }
 }
 
+impl Serialize for ActionStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_proto_name())
+    }
+}
+
 impl fmt::Display for ActionStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_proto_name())
@@ -79,10 +87,10 @@ impl FromStr for ActionStatus {
 
     fn from_str(s: &str) -> Result<Self, ()> {
         match s {
-            "ACTION_STATUS_PENDING"   | "Pending"   => Ok(ActionStatus::Pending),
-            "ACTION_STATUS_RUNNING"   | "Running"   | "Scheduled" => Ok(ActionStatus::Running),
-            "ACTION_STATUS_COMPLETED" | "Completed" => Ok(ActionStatus::Completed),
-            "ACTION_STATUS_ERROR"     | "Error"     => Ok(ActionStatus::Error),
+            "Pending" | "ACTION_STATUS_PENDING"           => Ok(ActionStatus::Pending),
+            "Running" | "Scheduled" | "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
+            "Completed" | "ACTION_STATUS_COMPLETED"       => Ok(ActionStatus::Completed),
+            "Error" | "ACTION_STATUS_ERROR"               => Ok(ActionStatus::Error),
             _ => Err(()),
         }
     }
