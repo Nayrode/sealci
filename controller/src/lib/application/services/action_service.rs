@@ -1,5 +1,5 @@
 use crate::{
-    application::ports::{action_service::ActionService, command_service::CommandService}, domain::action::{entities::action::{Action, ActionError, ActionType}, ports::action_repository::ActionRepository}, infrastructure::repositories::action_repository::PostgresActionRepository,
+    application::ports::{action_service::ActionService, command_service::CommandService}, domain::{action::{entities::action::{Action, ActionError, ActionType}, ports::action_repository::ActionRepository}, command::entities::command::CommandError}, infrastructure::repositories::action_repository::PostgresActionRepository,
 
 };
 use async_trait::async_trait;
@@ -30,26 +30,33 @@ impl<R, C> ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: C
 impl<R, C> ActionService for ActionServiceImpl<R, C> where R: ActionRepository + Send + Sync, C: CommandService + Send + Sync {
     async fn create(
         &self,
-        pipeline_id: i64,
-        name: String,
+        pipeline_id : i64,
+        name        : String,
         container_uri: String,
-        r#type: ActionType,
-        status: String,
-        commands: Option<Vec<String>>,
+        r#type      : ActionType,
+        status      : String,
+        commands    : Option<Vec<String>>,
     ) -> Result<Action, ActionError> {
-        let action = self
+        let created_action = self
             .repository
             .create(pipeline_id, name, container_uri, r#type, status)
             .await?;
 
-        if let Some(commands_vec) = commands {
-            for command_str in commands_vec {
-                let _command = self.command_service.create(action.id, command_str).await;
+        if let Some(cmds) = commands {
+            for cmd in cmds {
+                self.command_service
+                    .create(created_action.id, cmd)
+                    .await
+                    .map_err(|e| match e {
+                        CommandError::DatabaseError(pg) => ActionError::DatabaseError(pg),
+                        other => ActionError::CreateError(other.to_string()),
+                    })?;
             }
         }
 
-        Ok(action)
+        self.repository.find_by_id(created_action.id).await
     }
+
 
     async fn find_by_id(&self, action_id: i64) -> Result<Action, ActionError> {
         self.repository.find_by_id(action_id).await

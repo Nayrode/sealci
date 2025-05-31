@@ -5,7 +5,6 @@ use std::io::Read;
 use std::sync::Arc;
 use tracing::{error, info};
 
-// — use the parser ManifestPipeline under its own name —
 use crate::application::ports::pipeline_service::PipelineService;
 use crate::application::services::pipeline_service::DefaultPipelineServiceImpl;
 use crate::parser::pipe_parser::{
@@ -59,10 +58,19 @@ pub async fn get_pipeline(
     let verbose = query.verbose.unwrap_or(false);
     info!("Fetching pipeline with id: {}, verbose: {}", id, verbose);
     match pipeline_service.find_by_id(id).await {
-        Ok(p) => HttpResponse::Ok().json(p),
+        Ok(mut pipeline) => {
+            if verbose {
+                if let Err(e) = pipeline_service.add_verbose_details(&mut pipeline).await {
+                    error!("Failed to enrich pipeline {} with logs: {:?}", id, e);
+                }
+            }
+            HttpResponse::Ok().json(pipeline)
+        }
+
         Err(PipelineError::NotFound) => HttpResponse::NotFound().finish(),
+
         Err(e) => {
-            error!("Error fetching the pipeline {}: {:?}", id, e);
+            error!("Error fetching pipeline {}: {:?}", id, e);
             HttpResponse::InternalServerError().finish()
         }
     }

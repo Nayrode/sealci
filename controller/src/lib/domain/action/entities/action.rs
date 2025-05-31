@@ -7,9 +7,20 @@ use thiserror::Error;
 
 use crate::domain::log::entities::log::Log;
 
-#[derive(Debug, Serialize, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub enum ActionType {
     Container,
+}
+
+impl Serialize for ActionType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ActionType::Container => serializer.serialize_str("Container"),
+        }
+    }
 }
 
 impl fmt::Display for ActionType {
@@ -37,12 +48,32 @@ impl From<String> for ActionType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Copy, Eq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Copy, Eq)]
 pub enum ActionStatus {
     Pending,
     Running,
     Completed,
     Error,
+}
+
+impl ActionStatus {
+    pub fn as_proto_name(&self) -> &'static str {
+        match self {
+            ActionStatus::Pending => "ACTION_STATUS_PENDING",
+            ActionStatus::Running => "ACTION_STATUS_RUNNING",
+            ActionStatus::Completed => "ACTION_STATUS_COMPLETED",
+            ActionStatus::Error => "ACTION_STATUS_ERROR",
+        }
+    }
+}
+
+impl Serialize for ActionStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_proto_name())
+    }
 }
 
 impl fmt::Display for ActionStatus {
@@ -68,6 +99,12 @@ impl FromStr for ActionStatus {
             "Running" => Ok(ActionStatus::Running),
             "Completed" => Ok(ActionStatus::Completed),
             "Error" => Ok(ActionStatus::Error),
+
+            "ACTION_STATUS_PENDING" => Ok(ActionStatus::Pending),
+            "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
+            "ACTION_STATUS_COMPLETED" => Ok(ActionStatus::Completed),
+            "ACTION_STATUS_ERROR" => Ok(ActionStatus::Error),
+
             _ => Err(()),
         }
     }
@@ -128,7 +165,7 @@ impl Action {
         r#type: ActionType,
         container_uri: String,
         commands: Vec<String>,
-        logs: Vec<Log>
+        logs: Vec<Log>,
     ) -> Self {
         Self {
             id,
@@ -138,7 +175,7 @@ impl Action {
             r#type,
             container_uri,
             commands: commands,
-            logs: Some(logs)
+            logs: Some(logs),
         }
     }
 }
@@ -157,14 +194,14 @@ pub enum ActionError {
     InvalidType(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ActionDTO {
     pub action_id: i64,
     pub pipeline_id: i64,
     pub name: String,
-    pub r#type: String,
+    pub action_type: String,
     pub container_uri: String,
     pub status: String,
-    pub command: String,
-    pub command_id: i64,
+    pub command: Option<String>,
+    pub command_id: Option<i64>,
 }

@@ -1,5 +1,5 @@
 use crate::domain::action::entities::action::{
-    ActionRequest as DomainActionRequest, ExecutionContext as ActionContext,
+    ActionRequest, ExecutionContext,
 };
 use crate::{
     application::ports::{action_service::ActionService, scheduler_service::SchedulerService},
@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use futures::lock::Mutex;
 use std::sync::Arc;
 use tokio_stream::StreamExt;
-use tracing::info;
+use tracing::{error, info};
 
 use super::action_service::DefaultActionServiceImpl;
 
@@ -63,7 +63,6 @@ where
     R: PipelineRepository + Send + Sync,
 {
     async fn execute_pipeline(&self, pipeline_id: i64) -> Result<(), SchedulerError> {
-        // 1. Find actions by pipeline ID
         let mut actions = self
             .action_service
             .find_by_pipeline_id(pipeline_id)
@@ -76,20 +75,17 @@ where
             .await
             .map_err(|e| SchedulerError::Error(format!("Failed to find pipeline: {}", e)))?;
         let repo_url = pipeline.repository_url.clone();
-        // 2. Sort actions by ID
+
         actions.sort_by_key(|action| action.id);
 
-        // 3. Lock the scheduler client
-        let scheduler_client = self.scheduler_client.lock().await;
+        let client = self.scheduler_client.lock().await;
 
-        // 4. Execute each action
         for action in actions {
-            info!("Scheduling action: {:?}", action.id);
+            info!("Scheduling action: {}", action.id);
 
-            // 5. Request creation to schedule the action
-            let action_request = DomainActionRequest {
+            let action_request = ActionRequest {
                 action_id: action.id as u32,
-                context: ActionContext {
+                context: ExecutionContext {
                     r#type: action.r#type as i32,
                     container_image: Some(action.container_uri.clone()),
                 },
@@ -97,17 +93,17 @@ where
                 repo_url: repo_url.clone(),
             };
 
-            // 6.Send the request to the scheduler and get a stream of responses
-            let mut response_stream = scheduler_client
+            let mut response_stream = client
                 .schedule_action(action_request)
                 .await
-                .map_err(|e| SchedulerError::Error(format!("Failed to schedule action: {}", e)))?;
+                .map_err(|e| {
+                    error!("Failed to schedule action {}: {:?}", action.id, e);
+                    SchedulerError::Error(format!("Failed to schedule action: {}", e))
+                })?;
 
-            // 7. Treat the response stream
-            while let Some(response) = response_stream.next().await {
-                match response {
+            while let Some(item) = response_stream.next().await {
+                match item {
                     Ok(action_response) => {
-                        // 8. Update the action status in the database
                         if let Some(result) = &action_response.result {
                             self.action_service
                                 .update_status(
@@ -116,23 +112,35 @@ where
                                 )
                                 .await
                                 .map_err(|e| {
+                                    error!(
+                                        "Failed to update action {} status: {:?}",
+                                        action_response.action_id, e
+                                    );
                                     SchedulerError::Error(format!("Failed to update action: {}", e))
                                 })?;
                         }
-                        let log_data = action_response.log.clone();
 
+                        let log_data = action_response.log.clone();
                         self.action_service
                             .append_log(action_response.action_id as i64, log_data)
                             .await
                             .map_err(|e| {
+                                error!(
+                                    "Failed to store log for action {}: {:?}",
+                                    action_response.action_id, e
+                                );
                                 SchedulerError::Error(format!("Failed to store log: {}", e))
                             })?;
                     }
                     Err(e) => {
+                        error!(
+                            "Error from scheduler stream for action {}: {:?}",
+                            action.id, e
+                        );
                         return Err(SchedulerError::Error(format!(
                             "Error from scheduler: {}",
                             e
-                        )))
+                        )));
                     }
                 }
             }

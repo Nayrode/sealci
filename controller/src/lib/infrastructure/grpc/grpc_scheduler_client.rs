@@ -2,6 +2,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use futures::lock::Mutex;
 use futures::{Stream, StreamExt};
+use tracing::error;
 use std::error::Error;
 use tonic::transport::Channel;
 use tonic::{async_trait, Streaming};
@@ -48,7 +49,7 @@ impl DomainActionStatus {
             1 => DomainActionStatus::Running,
             2 => DomainActionStatus::Completed,
             3 => DomainActionStatus::Error,
-            _ => DomainActionStatus::Error, // Valeur par défaut en cas d'invalidité
+            _ => DomainActionStatus::Error,
         }
     }
 }
@@ -87,29 +88,35 @@ impl SchedulerClient for GrpcSchedulerClient {
         &self,
         request: DomainActionRequest,
     ) -> Result<
-        Pin<
-            Box<
-                dyn Stream<Item = Result<DomainActionResponse, Box<dyn Error + Send + Sync>>>
-                    + Send,
-            >,
-        >,
+        Pin<Box<dyn Stream<Item = Result<DomainActionResponse, Box<dyn Error + Send + Sync>>> + Send>>,
         Box<dyn Error + Send + Sync>,
     > {
         let grpc_request: ProtoActionRequest = request.into();
 
         let mut client = self.client.lock().await;
-        let mut grpc_stream: Streaming<ProtoActionResponse> =
-            client.schedule_action(grpc_request).await?.into_inner();
+        let response = client.schedule_action(grpc_request).await;
 
-        let stream = async_stream::stream! {
-          while let Some(response) = grpc_stream.next().await {
-            match response {
-              Ok(grpc_response) => yield Ok(DomainActionResponse::from(grpc_response)),
-              Err(e) => yield Err(Box::new(e) as Box<dyn Error + Send + Sync>)
+        let mut grpc_stream: Streaming<ProtoActionResponse> = match response {
+            Ok(resp) => resp.into_inner(),
+            Err(e) => {
+                error!("Error while sending action to scheduler: {:?}", e);
+                return Err(Box::new(e) as Box<dyn Error + Send + Sync>);
             }
-          }
         };
 
+        let stream = async_stream::stream! {
+            while let Some(result) = grpc_stream.next().await {
+                match result {
+                    Ok(grpc_response) => {
+                        yield Ok(DomainActionResponse::from(grpc_response));
+                    }
+                    Err(e) => {
+                        error!("Error while receiving message from scheduler: {:?}", e);
+                        yield Err(Box::new(e) as Box<dyn Error + Send + Sync>);
+                    }
+                }
+            }
+        };
         Ok(Box::pin(stream))
     }
 }
