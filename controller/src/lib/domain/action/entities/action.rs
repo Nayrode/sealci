@@ -59,7 +59,7 @@ impl ActionStatus {
     pub fn as_proto_name(&self) -> &'static str {
         match self {
             ActionStatus::Pending   => "ACTION_STATUS_PENDING",
-            ActionStatus::Running   => "ACTION_STATUS_RUNNING",
+            ActionStatus::Running   => "ACTION_STATUS_SCHEDULED",
             ActionStatus::Completed => "ACTION_STATUS_COMPLETED",
             ActionStatus::Error     => "ACTION_STATUS_ERROR",
         }
@@ -86,10 +86,18 @@ impl FromStr for ActionStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Pending" | "ACTION_STATUS_PENDING" => Ok(ActionStatus::Pending),
-            "Running" | "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
-            "Completed" | "ACTION_STATUS_COMPLETED" => Ok(ActionStatus::Completed),
-            "Error" | "ACTION_STATUS_ERROR" => Ok(ActionStatus::Error),
+            "Pending"                         => Ok(ActionStatus::Pending),
+            "Scheduled"                       => Ok(ActionStatus::Running),
+            "Running"                         => Ok(ActionStatus::Running),
+            "Completed"                       => Ok(ActionStatus::Completed),
+            "Error"                           => Ok(ActionStatus::Error),
+
+            "ACTION_STATUS_PENDING"           => Ok(ActionStatus::Pending),
+            "ACTION_STATUS_SCHEDULED"         => Ok(ActionStatus::Running),
+            "ACTION_STATUS_RUNNING"           => Ok(ActionStatus::Running),
+            "ACTION_STATUS_COMPLETED"         => Ok(ActionStatus::Completed),
+            "ACTION_STATUS_ERROR"             => Ok(ActionStatus::Error),
+
             _ => Err(()),
         }
     }
@@ -147,24 +155,27 @@ impl Action {
         id: i64,
         pipeline_id: i64,
         name: String,
-        status: ActionStatus,
-        r#type: ActionType,
         container_uri: String,
         commands: Vec<String>,
-        logs: Vec<String>,
-    ) -> Self {
-        Self {
+        r#type: ActionType,
+        status: String,
+    ) -> Result<Self, ActionError> {
+        let parsed = ActionStatus::from_str(&status)
+            .map_err(|_| ActionError::InvalidStatus(status.clone()))?;
+        let normalized = parsed.as_proto_name().to_string();
+        Ok(Action {
             id,
             pipeline_id,
             name,
-            status,
-            r#type,
             container_uri,
             commands,
-            logs: Some(logs),
-        }
+            r#type,
+            status: ActionStatus::from(normalized.clone()),
+            logs: None,
+        })
     }
 }
+
 
 #[derive(Debug, Error)]
 pub enum ActionError {
