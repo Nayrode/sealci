@@ -1,6 +1,4 @@
-use crate::domain::action::entities::action::{
-    ActionRequest, ExecutionContext,
-};
+use crate::domain::action::entities::action::{ActionRequest, ExecutionContext};
 use crate::{
     application::ports::{action_service::ActionService, scheduler_service::SchedulerService},
     domain::{
@@ -93,10 +91,8 @@ where
                 repo_url: repo_url.clone(),
             };
 
-            let mut response_stream = client
-                .schedule_action(action_request)
-                .await
-                .map_err(|e| {
+            let mut response_stream =
+                client.schedule_action(action_request).await.map_err(|e| {
                     error!("Failed to schedule action {}: {:?}", action.id, e);
                     SchedulerError::Error(format!("Failed to schedule action: {}", e))
                 })?;

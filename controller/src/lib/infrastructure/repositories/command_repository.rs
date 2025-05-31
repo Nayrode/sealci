@@ -1,4 +1,10 @@
-use crate::{domain::command::{entities::command::{Command, CommandError}, ports::command_repository::CommandRepository}, infrastructure::db::postgres::Postgres};
+use crate::{
+    domain::command::{
+        entities::command::{Command, CommandError},
+        ports::command_repository::CommandRepository,
+    },
+    infrastructure::db::postgres::Postgres,
+};
 use async_trait::async_trait;
 use std::sync::Arc;
 

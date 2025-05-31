@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use thiserror::Error;
 
-
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub enum ActionType {
     Container,
@@ -50,6 +49,7 @@ impl From<String> for ActionType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum ActionStatus {
     Pending,
+    Scheduled,
     Running,
     Completed,
     Error,
@@ -58,10 +58,11 @@ pub enum ActionStatus {
 impl ActionStatus {
     pub fn as_proto_name(&self) -> &'static str {
         match self {
-            ActionStatus::Pending   => "ACTION_STATUS_PENDING",
-            ActionStatus::Running   => "ACTION_STATUS_SCHEDULED",
+            ActionStatus::Pending => "ACTION_STATUS_PENDING",
+            ActionStatus::Scheduled => "ACTION_STATUS_SCHEDULED",
+            ActionStatus::Running => "ACTION_STATUS_RUNNING",
             ActionStatus::Completed => "ACTION_STATUS_COMPLETED",
-            ActionStatus::Error     => "ACTION_STATUS_ERROR",
+            ActionStatus::Error => "ACTION_STATUS_ERROR",
         }
     }
 }
@@ -83,21 +84,13 @@ impl fmt::Display for ActionStatus {
 
 impl FromStr for ActionStatus {
     type Err = ();
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Pending"                         => Ok(ActionStatus::Pending),
-            "Scheduled"                       => Ok(ActionStatus::Running),
-            "Running"                         => Ok(ActionStatus::Running),
-            "Completed"                       => Ok(ActionStatus::Completed),
-            "Error"                           => Ok(ActionStatus::Error),
-
-            "ACTION_STATUS_PENDING"           => Ok(ActionStatus::Pending),
-            "ACTION_STATUS_SCHEDULED"         => Ok(ActionStatus::Running),
-            "ACTION_STATUS_RUNNING"           => Ok(ActionStatus::Running),
-            "ACTION_STATUS_COMPLETED"         => Ok(ActionStatus::Completed),
-            "ACTION_STATUS_ERROR"             => Ok(ActionStatus::Error),
-
+            "Pending" | "ACTION_STATUS_PENDING" => Ok(ActionStatus::Pending),
+            "Scheduled" | "ACTION_STATUS_SCHEDULED" => Ok(ActionStatus::Scheduled),
+            "Running" | "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
+            "Completed" | "ACTION_STATUS_COMPLETED" => Ok(ActionStatus::Completed),
+            "Error" | "ACTION_STATUS_ERROR" => Ok(ActionStatus::Error),
             _ => Err(()),
         }
     }
@@ -175,7 +168,6 @@ impl Action {
         })
     }
 }
-
 
 #[derive(Debug, Error)]
 pub enum ActionError {

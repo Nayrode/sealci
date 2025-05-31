@@ -39,8 +39,6 @@ impl LogRepository for PostgresLogRepository {
         })
     }
 
-
-    
     async fn find_by_action_id(&self, action_id: i64) -> Result<Vec<Log>, LogError> {
         let rows = sqlx::query_as!(Log, r#"SELECT * FROM logs WHERE action_id = $1"#, action_id)
             .fetch_all(&self.postgres.get_pool())
@@ -50,11 +48,10 @@ impl LogRepository for PostgresLogRepository {
         let logs = rows
             .into_iter()
             .map(|row| Log {
-                    id: row.id,
-                    action_id: row.action_id,
-                    data: row.data,
-                },
-            )
+                id: row.id,
+                action_id: row.action_id,
+                data: row.data,
+            })
             .collect();
 
         Ok(logs)

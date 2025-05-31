@@ -155,7 +155,9 @@ impl ActionRepository for PostgresActionRepository {
             }
         }
 
-        Ok(map.into_values().collect())
+        let mut actions: Vec<Action> = map.into_values().collect();
+        actions.sort_by_key(|a| a.id);
+        Ok(actions)
     }
 
     async fn update_status(&self, action_id: i64, status: &String) -> Result<Action, ActionError> {

@@ -40,12 +40,10 @@ impl PipelineRepository for PostgresPipelineRepository {
     }
 
     async fn find_all(&self) -> Result<Vec<Pipeline>, PipelineError> {
-        let rows = sqlx::query!(
-            "SELECT id, repository_url, name FROM pipelines"
-        )
-        .fetch_all(&self.postgres.get_pool())
-        .await
-        .map_err(PipelineError::DatabaseError)?;
+        let rows = sqlx::query!("SELECT id, repository_url, name FROM pipelines")
+            .fetch_all(&self.postgres.get_pool())
+            .await
+            .map_err(PipelineError::DatabaseError)?;
 
         let pipelines = rows
             .into_iter()

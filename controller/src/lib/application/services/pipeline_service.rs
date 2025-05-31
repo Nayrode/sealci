@@ -84,24 +84,31 @@ where
                 .action_service
                 .find_by_pipeline_id(pipeline.id)
                 .await
-                .map_err(|e| PipelineError::CreateError(format!("Failed to find actions: {}", e)))?;
+                .map_err(|e| {
+                    PipelineError::CreateError(format!("Failed to find actions: {}", e))
+                })?;
 
-                if verbose {
-                    for act in &mut actions {
-                        let db_rows = self.logs_repository.find_by_action_id(act.id).await
-                            .map_err(|e| PipelineError::CreateError(format!("Error fetching logs: {}", e)))?;
-                
-                        let mut lines = Vec::with_capacity(db_rows.len());
-                        for lg in db_rows {
-                            lines.push(lg.data);
-                        }
-                        act.logs = Some(lines);
+            if verbose {
+                for act in &mut actions {
+                    let db_rows = self
+                        .logs_repository
+                        .find_by_action_id(act.id)
+                        .await
+                        .map_err(|e| {
+                            PipelineError::CreateError(format!("Error fetching logs: {}", e))
+                        })?;
+
+                    let mut lines = Vec::with_capacity(db_rows.len());
+                    for lg in db_rows {
+                        lines.push(lg.data);
                     }
-                } else {
-                    for act in &mut actions {
-                        act.logs = None;
-                    }
+                    act.logs = Some(lines);
                 }
+            } else {
+                for act in &mut actions {
+                    act.logs = None;
+                }
+            }
 
             pipeline.actions = actions;
         }
@@ -164,22 +171,24 @@ where
         let pipeline_id = pipeline.id;
         tokio::spawn(async move {
             if let Err(err) = scheduler.lock().await.execute_pipeline(pipeline_id).await {
-                error!("Error gRPC scheduling client on pipeline {}: {:?}", pipeline_id, err);
+                error!(
+                    "Error gRPC scheduling client on pipeline {}: {:?}",
+                    pipeline_id, err
+                );
             }
         });
 
         Ok(pipeline)
     }
 
-
-
     async fn add_verbose_details(&self, pipe: &mut Pipeline) -> Result<(), PipelineError> {
         for act in &mut pipe.actions {
-            let rows = self.logs_repository
+            let rows = self
+                .logs_repository
                 .find_by_action_id(act.id)
                 .await
                 .map_err(|e| PipelineError::CreateError(format!("fetch logs: {}", e)))?;
-    
+
             let mut lines = Vec::with_capacity(rows.len());
             for lg in rows {
                 lines.push(lg.data);

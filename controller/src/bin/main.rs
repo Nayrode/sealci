@@ -81,26 +81,25 @@ async fn main() -> std::io::Result<()> {
 
     let action_repository = Arc::new(PostgresActionRepository::new(postgres.clone()));
 
-    let command_service =
-        Arc::new(CommandServiceImpl::new(command_repository));
+    let command_service = Arc::new(CommandServiceImpl::new(command_repository));
 
-    let action_service = Arc::new(
-        ActionServiceImpl::new(action_repository, command_service),
-    );
+    let action_service = Arc::new(ActionServiceImpl::new(action_repository, command_service));
     let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()));
-    
+
     let log_repository = Arc::new(PostgresLogRepository::new(postgres.clone()));
-    
-    let scheduler_service =
-    Arc::new(Mutex::new(SchedulerServiceImpl::new(
+
+    let scheduler_service = Arc::new(Mutex::new(SchedulerServiceImpl::new(
         action_service.clone(),
         scheduler_client,
         pipeline_repository.clone(),
     )));
 
-    let pipeline_service = Arc::new(
-        PipelineServiceImpl::new(pipeline_repository.clone(), log_repository.clone(), action_service.clone(), scheduler_service.clone()),
-    );
+    let pipeline_service = Arc::new(PipelineServiceImpl::new(
+        pipeline_repository.clone(),
+        log_repository.clone(),
+        action_service.clone(),
+        scheduler_service.clone(),
+    ));
 
     info!("Listening on {}", addr_in);
     // Start HTTP server with CORS, logging middleware, and configured routes

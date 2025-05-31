@@ -7,9 +7,7 @@ pub struct Postgres {
 impl Postgres {
     pub async fn new(database_url: &str) -> Self {
         let pool = PgPool::connect(database_url).await.unwrap();
-        Self {
-            pool: pool,
-        }
+        Self { pool: pool }
     }
 
     pub fn get_pool(&self) -> PgPool {

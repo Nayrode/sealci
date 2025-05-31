@@ -1,26 +1,21 @@
-use std::pin::Pin;
-use std::sync::Arc;
-use futures::lock::Mutex;
-use futures::{Stream, StreamExt};
-use tracing::error;
-use std::error::Error;
-use tonic::transport::Channel;
-use tonic::{async_trait, Streaming};
 use crate::domain::action::entities::action::{
-    ActionRequest as DomainActionRequest,
-    ActionResponse as DomainActionResponse,
-    ActionResult as DomainActionResult,
-    ActionStatus as DomainActionStatus
+    ActionRequest as DomainActionRequest, ActionResponse as DomainActionResponse,
+    ActionResult as DomainActionResult, ActionStatus as DomainActionStatus,
 };
 use crate::domain::scheduler::services::scheduler_client::SchedulerClient;
+use futures::lock::Mutex;
+use futures::{Stream, StreamExt};
+use std::error::Error;
+use std::pin::Pin;
+use std::sync::Arc;
+use tonic::transport::Channel;
+use tonic::{async_trait, Streaming};
+use tracing::error;
 
 use crate::infrastructure::grpc::proto_scheduler::controller_client::ControllerClient;
 use crate::infrastructure::grpc::proto_scheduler::{
-    ActionRequest as ProtoActionRequest, 
-    ActionResponse as ProtoActionResponse, 
-    ActionResult as ProtoActionResult,
-    ExecutionContext,
-    RunnerType
+    ActionRequest as ProtoActionRequest, ActionResponse as ProtoActionResponse,
+    ActionResult as ProtoActionResult, ExecutionContext, RunnerType,
 };
 
 impl From<ProtoActionResponse> for DomainActionResponse {
@@ -28,7 +23,9 @@ impl From<ProtoActionResponse> for DomainActionResponse {
         DomainActionResponse {
             action_id: grpc_response.action_id,
             log: grpc_response.log,
-            result: grpc_response.result.map(|res| DomainActionResult::from(res)),
+            result: grpc_response
+                .result
+                .map(|res| DomainActionResult::from(res)),
         }
     }
 }
@@ -46,9 +43,10 @@ impl DomainActionStatus {
     pub fn from_i32(value: i32) -> DomainActionStatus {
         match value {
             0 => DomainActionStatus::Pending,
-            1 => DomainActionStatus::Running,
-            2 => DomainActionStatus::Completed,
-            3 => DomainActionStatus::Error,
+            1 => DomainActionStatus::Scheduled,
+            2 => DomainActionStatus::Running,  
+            3 => DomainActionStatus::Completed,
+            4 => DomainActionStatus::Error,     
             _ => DomainActionStatus::Error,
         }
     }
@@ -78,7 +76,7 @@ impl GrpcSchedulerClient {
         tracing::info!("Connected to scheduler at {}", grpc_url);
         Ok(Self {
             client: Arc::new(Mutex::new(client)),
-        })  
+        })
     }
 }
 
@@ -88,7 +86,12 @@ impl SchedulerClient for GrpcSchedulerClient {
         &self,
         request: DomainActionRequest,
     ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<DomainActionResponse, Box<dyn Error + Send + Sync>>> + Send>>,
+        Pin<
+            Box<
+                dyn Stream<Item = Result<DomainActionResponse, Box<dyn Error + Send + Sync>>>
+                    + Send,
+            >,
+        >,
         Box<dyn Error + Send + Sync>,
     > {
         let grpc_request: ProtoActionRequest = request.into();
