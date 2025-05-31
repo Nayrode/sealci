@@ -298,13 +298,14 @@ impl VMM {
     pub async fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         self.configure_allocators(config.mem_size_mb)?;
-        self.configure_io()?;
-        self.configure_net_device().await?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,
             PathBuf::from(config.kernel_path),
             &self.cmdline,
+            &config.initramfs_path,
         )?;
+        self.configure_io()?;
+        self.configure_net_device().await?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }

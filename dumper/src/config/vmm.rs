@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 
 use clap::{self, arg, command, Parser};
 
@@ -16,19 +17,33 @@ pub struct VmmConfig {
     #[arg(long, default_value = "true", help = "Enable virtio network device")]
     pub enable_network: bool,
 
-    #[arg(long, default_value = "52:54:00:12:34:56", help = "MAC address for the virtio network device")]
+    #[arg(
+        long,
+        default_value = "52:54:00:12:34:56",
+        help = "MAC address for the virtio network device"
+    )]
     pub network_mac: String,
+    
+    #[arg(long, help = "The path to the initramfs folder")]
+    pub initramfs_path: Option<PathBuf>,
 }
 
-
 impl VmmConfig {
-    pub fn new(mem_size_mb: u32, kernel_path: String, num_vcpus: u8, enable_network: bool, network_mac: String) -> Self {
+    pub fn new(
+        mem_size_mb: u32,
+        kernel_path: String,
+        num_vcpus: u8,
+        initramfs_path: Option<PathBuf>,
+        enable_network: bool,
+        network_mac: String,
+    ) -> Self {
         Self {
             mem_size_mb,
             kernel_path,
             num_vcpus,
             enable_network,
             network_mac,
+            initramfs_path,
         }
     }
 }

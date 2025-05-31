@@ -48,6 +48,8 @@ pub enum Error {
     NoAllocatorFound,
     AllocationError(vm_allocator::Error),
     NetError(crate::devices::virtio::net::Error),
+    /// Initramfs load error
+    InitramfsLoad
 }
 
 impl fmt::Display for Error {
@@ -78,6 +80,7 @@ impl fmt::Display for Error {
             Error::NoAllocatorFound => write!(f, "No allocator found"),
             Error::AllocationError(error) => write!(f, "Allocation error: {}", error),
             Error::NetError(_) => write!(f, "Network error"),
+            Error::InitramfsLoad => write!(f, "Initramfs load error"),
         }
     }
 }
