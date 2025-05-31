@@ -48,7 +48,8 @@ impl From<String> for ActionType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Copy, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ActionStatus {
     Pending,
     Running,
@@ -59,52 +60,29 @@ pub enum ActionStatus {
 impl ActionStatus {
     pub fn as_proto_name(&self) -> &'static str {
         match self {
-            ActionStatus::Pending => "ACTION_STATUS_PENDING",
-            ActionStatus::Running => "ACTION_STATUS_RUNNING",
+            ActionStatus::Pending   => "ACTION_STATUS_PENDING",
+            ActionStatus::Running   => "ACTION_STATUS_RUNNING",
             ActionStatus::Completed => "ACTION_STATUS_COMPLETED",
-            ActionStatus::Error => "ACTION_STATUS_ERROR",
+            ActionStatus::Error     => "ACTION_STATUS_ERROR",
         }
-    }
-}
-
-impl Serialize for ActionStatus {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_proto_name())
     }
 }
 
 impl fmt::Display for ActionStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            ActionStatus::Pending => "Pending",
-            ActionStatus::Running => "Scheduled",
-            ActionStatus::Completed => "Completed",
-            ActionStatus::Error => "Error",
-        };
-
-        write!(f, "{}", s)
+        f.write_str(self.as_proto_name())
     }
 }
 
 impl FromStr for ActionStatus {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, ()> {
         match s {
-            "Pending" => Ok(ActionStatus::Pending),
-            "Scheduled" => Ok(ActionStatus::Running),
-            "Running" => Ok(ActionStatus::Running),
-            "Completed" => Ok(ActionStatus::Completed),
-            "Error" => Ok(ActionStatus::Error),
-
-            "ACTION_STATUS_PENDING" => Ok(ActionStatus::Pending),
-            "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
-            "ACTION_STATUS_COMPLETED" => Ok(ActionStatus::Completed),
-            "ACTION_STATUS_ERROR" => Ok(ActionStatus::Error),
-
+            "ACTION_STATUS_PENDING"   | "Pending"   => Ok(ActionStatus::Pending),
+            "ACTION_STATUS_RUNNING"   | "Running"   | "Scheduled" => Ok(ActionStatus::Running),
+            "ACTION_STATUS_COMPLETED" | "Completed" => Ok(ActionStatus::Completed),
+            "ACTION_STATUS_ERROR"     | "Error"     => Ok(ActionStatus::Error),
             _ => Err(()),
         }
     }
@@ -112,7 +90,7 @@ impl FromStr for ActionStatus {
 
 impl From<String> for ActionStatus {
     fn from(s: String) -> Self {
-        ActionStatus::from_str(&s).unwrap()
+        ActionStatus::from_str(&s).unwrap_or(ActionStatus::Error)
     }
 }
 
@@ -143,7 +121,7 @@ pub struct ActionResult {
     pub exit_code: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
 pub struct Action {
     pub id: i64,
     pub pipeline_id: i64,
@@ -153,7 +131,7 @@ pub struct Action {
     #[sqlx(default)]
     pub commands: Vec<String>,
     pub status: ActionStatus,
-    pub logs: Option<Vec<Log>>,
+    pub logs: Option<Vec<String>>,
 }
 
 impl Action {
@@ -165,7 +143,7 @@ impl Action {
         r#type: ActionType,
         container_uri: String,
         commands: Vec<String>,
-        logs: Vec<Log>,
+        logs: Vec<String>,
     ) -> Self {
         Self {
             id,
@@ -174,7 +152,7 @@ impl Action {
             status,
             r#type,
             container_uri,
-            commands: commands,
+            commands,
             logs: Some(logs),
         }
     }

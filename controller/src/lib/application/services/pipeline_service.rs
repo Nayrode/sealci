@@ -86,25 +86,22 @@ where
                 .await
                 .map_err(|e| PipelineError::CreateError(format!("Failed to find actions: {}", e)))?;
 
-            if verbose {
-                for action in &mut actions {
-                    match self.logs_repository.find_by_action_id(action.id).await {
-                        Ok(logs) => {
-                            action.logs = Some(logs.into_iter().collect());
+                if verbose {
+                    for act in &mut actions {
+                        let db_rows = self.logs_repository.find_by_action_id(act.id).await
+                            .map_err(|e| PipelineError::CreateError(format!("Error fetching logs: {}", e)))?;
+                
+                        let mut lines = Vec::with_capacity(db_rows.len());
+                        for lg in db_rows {
+                            lines.push(lg.data);
                         }
-                        Err(e) => {
-                            return Err(PipelineError::CreateError(format!(
-                                "Error fetching logs for action {}: {}",
-                                action.name, e
-                            )));
-                        }
+                        act.logs = Some(lines);
+                    }
+                } else {
+                    for act in &mut actions {
+                        act.logs = None;
                     }
                 }
-            } else {
-                for action in &mut actions {
-                    action.logs = None;
-                }
-            }
 
             pipeline.actions = actions;
         }
@@ -176,20 +173,18 @@ where
 
 
 
-    async fn add_verbose_details(&self, pipeline: &mut Pipeline) -> Result<(), PipelineError> {
-        for action in &mut pipeline.actions {
-            info!("Fetching verbose details for action: {:?}", action);
-            match self.logs_repository.find_by_action_id(action.id).await {
-                Ok(logs) => {
-                    action.logs = Some(logs.into_iter().collect());
-                }
-                Err(e) => {
-                    return Err(PipelineError::CreateError(format!(
-                        "Error fetching logs for action {}: {}",
-                        action.name, e
-                    )));
-                }
+    async fn add_verbose_details(&self, pipe: &mut Pipeline) -> Result<(), PipelineError> {
+        for act in &mut pipe.actions {
+            let rows = self.logs_repository
+                .find_by_action_id(act.id)
+                .await
+                .map_err(|e| PipelineError::CreateError(format!("fetch logs: {}", e)))?;
+    
+            let mut lines = Vec::with_capacity(rows.len());
+            for lg in rows {
+                lines.push(lg.data);
             }
+            act.logs = Some(lines);
         }
         Ok(())
     }
