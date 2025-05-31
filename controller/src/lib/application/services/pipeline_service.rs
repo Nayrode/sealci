@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::lock::Mutex;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::{
     application::ports::{

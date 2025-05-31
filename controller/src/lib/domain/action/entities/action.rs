@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use thiserror::Error;
 
-use crate::domain::log::entities::log::Log;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub enum ActionType {
@@ -139,6 +138,7 @@ pub struct Action {
     #[sqlx(default)]
     pub commands: Vec<String>,
     pub status: ActionStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub logs: Option<Vec<String>>,
 }
 
