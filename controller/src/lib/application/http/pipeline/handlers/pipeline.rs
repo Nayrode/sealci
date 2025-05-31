@@ -58,11 +58,6 @@ pub async fn get_pipeline(
     let id = path.id;
     let verbose = query.verbose.unwrap_or(false);
     info!("Fetching pipeline with id: {}, verbose: {}", id, verbose);
-    // let pipeline = pipeline_service.find_by_id(i64::from(id)).await; // FIXME add verbose
-    // match pipeline {
-    //     p => HttpResponse::Ok().json(p),
-    //     pipeline_error => HttpResponse::NotFound().finish(),
-    // }
     match pipeline_service.find_by_id(id).await {
         Ok(p) => HttpResponse::Ok().json(p),
         Err(PipelineError::NotFound) => HttpResponse::NotFound().finish(),
@@ -84,12 +79,6 @@ pub async fn create_pipeline(
         form.repo_url.as_str()
     );
     let repo_url = form.repo_url.to_string();
-    let f = &form.file;
-    let file_name = match &f.file_name {
-        Some(file_name) => file_name,
-        None => return HttpResponse::UnprocessableEntity().body("Invalid file name"),
-    };
-    let _path = format!("./tmp/{}", file_name);
     let mut fd = form.file.file;
     let mut buffer = String::new();
     if let Err(e) = fd.read_to_string(&mut buffer) {
@@ -98,7 +87,6 @@ pub async fn create_pipeline(
         }
         return HttpResponse::InternalServerError().finish();
     }
-
     let parser = PipeParser {};
     let parser_manifest: ParserManifestPipeline = match parser.parse(buffer) {
         Ok(m) => m,
