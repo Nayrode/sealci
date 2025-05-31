@@ -84,12 +84,12 @@ impl fmt::Display for ActionStatus {
 impl FromStr for ActionStatus {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, ()> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Pending" | "ACTION_STATUS_PENDING"           => Ok(ActionStatus::Pending),
-            "Running" | "Scheduled" | "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
-            "Completed" | "ACTION_STATUS_COMPLETED"       => Ok(ActionStatus::Completed),
-            "Error" | "ACTION_STATUS_ERROR"               => Ok(ActionStatus::Error),
+            "Pending" | "ACTION_STATUS_PENDING" => Ok(ActionStatus::Pending),
+            "Running" | "ACTION_STATUS_RUNNING" => Ok(ActionStatus::Running),
+            "Completed" | "ACTION_STATUS_COMPLETED" => Ok(ActionStatus::Completed),
+            "Error" | "ACTION_STATUS_ERROR" => Ok(ActionStatus::Error),
             _ => Err(()),
         }
     }
