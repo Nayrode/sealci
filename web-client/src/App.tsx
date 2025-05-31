@@ -1,15 +1,14 @@
-import { Outlet } from "react-router-dom";
-import Menu from "./components/menu";
+import { Outlet } from 'react-router-dom'
+import { Header } from './components/header'
+import { PipelineProvider } from './contexts/PipelineContext'
 
 function App() {
   return (
-    <>
-      <Menu />
-      <div className="mx-[30px] mt-8">
-        <Outlet />
-      </div>
-    </>
-  );
+    <PipelineProvider>
+      <Header />
+      <Outlet />
+    </PipelineProvider>
+  )
 }
 
-export default App;
+export default App

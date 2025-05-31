@@ -1,43 +1,39 @@
-import { usePipelines } from "@/queries/pipelines.queries";
-import { PipelineCard } from "../components/pipeline";
-import { useEffect } from "react";
+import { usePipelines } from '@/hooks/use-pipelines'
+import { Button } from '@/components/ui/button'
+import { RefreshCw } from 'lucide-react'
+import { PipelineCard } from '@/components/pipeline-card'
 
-export default function PipelinesPage() {
-  const { data: pipelines, refetch } = usePipelines(false);
+export default function Home() {
+  const { data: pipelines, isPending, refetch } = usePipelines(false)
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log("fetching pipelines");
-      refetch();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [refetch]);
-
-  if (!pipelines) {
-    return <div>fetching</div>;
-  }
   return (
-    <div>
-      <h2 className="text-4xl text-primary my-6 font-serif">All pipelines</h2>
-      <div className="grid-cols-2 grid gap-4">
-        {pipelines
-          .sort((a, b) => {
-            return a.id > b.id ? -1 : 1;
-          })
-          .map((pipeline) => (
-            <PipelineCard
-              key={pipeline.id}
-              pipeline={{
-                id: pipeline.id,
-                repository_url: pipeline.repository_url,
-                name: pipeline.name,
-                actions: pipeline.actions,
-              }}
-              commit_hash={"eqwc231"}
-            />
-          ))}
+    <main className="flex-1 container py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Pipelines</h1>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isPending}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
-    </div>
-  );
+
+      {isPending ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-[180px] rounded-md bg-muted animate-pulse" />
+          ))}
+        </div>
+      ) : !pipelines || pipelines.length === 0 ? (
+        <div className="text-center py-12">
+          <h2 className="text-xl font-medium mb-2">Aucune pipeline trouvée</h2>
+          <p className="text-muted-foreground">Aucune pipeline n'a été lancée ou les données ne sont pas disponibles.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {pipelines.map((pipeline) => (
+            <PipelineCard key={pipeline.id} pipeline={pipeline} />
+          ))}
+        </div>
+      )}
+    </main>
+  )
 }
