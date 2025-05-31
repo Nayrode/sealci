@@ -1,4 +1,4 @@
-use crate::common::GitEvent;
+use crate::common::{GitEvent, GitTag};
 use crate::github::GitHubClient;
 use crate::{controller::ControllerClient, error::Error};
 use std::fs::File;
@@ -212,10 +212,17 @@ impl Listener {
                     Ok(current_tags) => {
                         info!("Current tags: {:?}", current_tags);
 
-                        if current_tags != last_tags {
+                        // Identify new tags by checking which tags are in current_tags but not in last_tags
+                        let new_tags: Vec<GitTag> = current_tags
+                            .iter()
+                            .filter(|tag| !last_tags.contains(tag))
+                            .cloned()
+                            .collect();
+
+                        if !new_tags.is_empty() {
                             info!(
                                 "{}/{} - New tags detected: {:?}",
-                                repo_owner, repo_name, current_tags
+                                repo_owner, repo_name, new_tags
                             );
                             if let Err(e) = controller_client
                                 .send_to_controller(&repo_url, file.as_ref())
