@@ -63,7 +63,7 @@ pub enum PipelineError {
     NotFound,
 
     #[error("Database error: {0}")]
-    DatabaseError(#[from] sqlx::Error), // Erreurs liées à la base de données
+    DatabaseError(#[from] sqlx::Error),
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
