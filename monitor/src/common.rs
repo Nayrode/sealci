@@ -7,8 +7,7 @@ pub enum GitEvent {
     #[default]
     Commit,
     PullRequest,
-    // Not supported yet
-    // Tag,
+    Tag,
     All,
 }
 
@@ -19,6 +18,7 @@ impl TryFrom<String> for GitEvent {
         match value.as_str() {
             "commit" => Ok(GitEvent::Commit),
             "pull_request" => Ok(GitEvent::PullRequest),
+            "tag" => Ok(GitEvent::Tag),
             "all" | "*" => Ok(GitEvent::All),
             _ => Err(Error::FaildToReadGitEvent),
         }
