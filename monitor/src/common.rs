@@ -7,8 +7,7 @@ pub enum GitEvent {
     #[default]
     Commit,
     PullRequest,
-    // Not supported yet
-    // Tag,
+    Tag,
     All,
 }
 
@@ -19,6 +18,7 @@ impl TryFrom<String> for GitEvent {
         match value.as_str() {
             "commit" => Ok(GitEvent::Commit),
             "pull_request" => Ok(GitEvent::PullRequest),
+            "tag" => Ok(GitEvent::Tag),
             "all" | "*" => Ok(GitEvent::All),
             _ => Err(Error::FaildToReadGitEvent),
         }
@@ -39,3 +39,15 @@ pub struct UpdateConfigForm {
     pub actions_file: Option<TempFile>,
     pub events: Option<Text<Vec<GitEvent>>>,
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+pub struct GitTag {
+    pub name: String,
+}
+
+impl PartialEq for GitTag {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+

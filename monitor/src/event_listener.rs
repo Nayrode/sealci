@@ -1,4 +1,4 @@
-use crate::common::GitEvent;
+use crate::common::{GitEvent, GitTag};
 use crate::github::GitHubClient;
 use crate::{controller::ControllerClient, error::Error};
 use std::fs::File;
@@ -152,14 +152,14 @@ impl Listener {
                     .get_pull_requests(repo_owner.clone(), repo_name.clone(), github_token.clone())
                     .await
                 {
-                    Ok(current_pull_requests) => {
-                        if let Some(current_pr) = current_pull_requests.get(0) {
-                            if last_pr.id != current_pr.id {
+                    Ok(current_tags) => {
+                        if let Some(last_tag_pushed) = current_tags.get(0) {
+                            if last_pr.id != last_tag_pushed.id {
                                 info!(
                                     "{}/{} - New pull request found: {}",
-                                    repo_owner, repo_name, current_pr.title
+                                    repo_owner, repo_name, last_tag_pushed.title
                                 );
-                                last_pr = current_pr.clone(); // Update the last PR ID
+                                last_pr = last_tag_pushed.clone(); // Update the last PR ID
                                 if let Err(e) = controller_client
                                     .send_to_controller(&repo_url, file.as_ref())
                                     .await
@@ -179,9 +179,75 @@ impl Listener {
         Ok(())
     }
 
+    pub async fn listen_to_tags(&self) -> Result<(), Error> {
+        let tags = self
+            .github_client
+            .get_tags(
+                self.repo_owner.clone(),
+                self.repo_name.clone(),
+                self.github_token.clone(),
+            )
+            .await?;
+        // If no tags are found, we initialize with an empty list
+        let last_tags = tags;
+
+        let repo_owner = self.repo_owner.clone();
+        let repo_name = self.repo_name.clone();
+        let github_token = self.github_token.clone();
+        let repo_url = self.repo_url.clone();
+        let file = self.actions_file.read().unwrap().clone();
+        let github_client = self.github_client.clone();
+        let controller_client = self.controller_client.clone();
+        let mut listener_handles = self.listener_handles.lock().await;
+
+        listener_handles.spawn(async move {
+            let mut last_tags = last_tags;
+            loop {
+                sleep(Duration::from_secs(10)).await; // Wait 10 seconds before checking again
+
+                match github_client
+                    .get_tags(repo_owner.clone(), repo_name.clone(), github_token.clone())
+                    .await
+                {
+                    Ok(current_tags) => {
+                        info!("Current tags: {:?}", current_tags);
+
+                        // Identify new tags by checking which tags are in current_tags but not in last_tags
+                        let new_tags: Vec<GitTag> = current_tags
+                            .iter()
+                            .filter(|tag| !last_tags.contains(tag))
+                            .cloned()
+                            .collect();
+
+                        if !new_tags.is_empty() {
+                            info!(
+                                "{}/{} - New tags detected: {:?}",
+                                repo_owner, repo_name, new_tags
+                            );
+                            if let Err(e) = controller_client
+                                .send_to_controller(&repo_url, file.as_ref())
+                                .await
+                            {
+                                error!("Error sending to controller: {}", e);
+                                continue;
+                            }
+                            last_tags = current_tags; // Update the last tags
+                        }
+                    }
+                    Err(_) => {
+                        // Handle errors (such as network issues or API problems)
+                        error!("Error fetching the latest tags");
+                    }
+                };
+            }
+        });
+        Ok(())
+    }
+
     pub async fn listen_to_all(&self) -> Result<(), Error> {
         self.listen_to_commits().await?;
         self.listen_to_pull_requests().await?;
+        self.listen_to_tags().await?;
         Ok(())
     }
 
@@ -197,6 +263,8 @@ impl Listener {
                 match e {
                     GitEvent::Commit => self.listen_to_commits().await?,
                     GitEvent::PullRequest => self.listen_to_pull_requests().await?,
+                    GitEvent::Tag => self.listen_to_tags().await?,
+
                     GitEvent::All => (),
                 }
             }
@@ -233,7 +301,9 @@ impl Listener {
 
         let mut file_ref = file.as_ref();
         if let Err(_) = file_ref.seek(SeekFrom::Start(0)) {
-            return Err(Error::Error("Failed to seek to the start of the file".to_string()));
+            return Err(Error::Error(
+                "Failed to seek to the start of the file".to_string(),
+            ));
         }
         file_ref
             .read_to_string(&mut content)

@@ -1,6 +1,6 @@
 use models::PullRequest;
 
-use crate::{constants::GITHUB_API_URL, error::Error};
+use crate::{common::GitTag, constants::GITHUB_API_URL, error::Error};
 
 pub mod http;
 pub mod models;
@@ -57,4 +57,18 @@ impl GitHubClient {
         let pull_requests: Vec<PullRequest> = self.client.get(url, token).await?;
         Ok(pull_requests)
     }
+    
+        pub async fn get_tags(
+            &self,
+            repo_owner: String,
+            repo_name: String,
+            token: String,
+        ) -> Result<Vec<GitTag>, Error> {
+            let url = format!(
+                "https://api.github.com/repos/{}/{}/tags",
+                repo_owner, repo_name
+            );
+            let tags: Vec<GitTag> = self.client.get(url, token).await?;
+            Ok(tags)
+        }
 }
