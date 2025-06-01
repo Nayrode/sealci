@@ -1,82 +1,72 @@
+use futures::lock::Mutex;
 use std::sync::Arc;
 
-use futures::lock::Mutex;
-
-use crate::{
-    domain::{
-        repositories::{
-            action_repository::ActionRepository, command_repository::CommandRepository,
-            pipeline_repository::PipelineRepository,
-        },
-        services::scheduler_client::SchedulerClient,
-    },
+use crate::
     infrastructure::{
-        db::{
-            action_repository::PostgresActionRepository,
-            command_repository::PostgresCommandRepository,
-            pipeline_repository::PostgresPipelineRepository, postgres::Postgres,
-        },
+        db::postgres::Postgres,
         grpc::grpc_scheduler_client::GrpcSchedulerClient,
-    },
-};
+        repositories::{
+            action_repository::PostgresActionRepository,
+            command_repository::PostgresCommandRepository, log_repository::PostgresLogRepository,
+            pipeline_repository::PostgresPipelineRepository,
+        },
+    }
+;
 
-use super::{
-    ports::{
-        action_service::ActionService, command_service::CommandService,
-        pipeline_service::PipelineService, scheduler_service::SchedulerService,
-    },
+use super::
     services::{
         action_service::ActionServiceImpl, command_service::CommandServiceImpl,
         pipeline_service::PipelineServiceImpl, scheduler_service_impl::SchedulerServiceImpl,
-    },
-};
+    }
+;
 
+#[derive(Clone)]
 pub struct AppContext {
-    pub pipeline_service: Arc<Box<dyn PipelineService + Send + Sync>>,
-    pub action_service: Arc<Box<dyn ActionService + Send + Sync>>,
-    pub command_service: Arc<Box<dyn CommandService + Send + Sync>>,
-    pub scheduler_service: Arc<Box<dyn SchedulerService + Send + Sync>>,
+    pub pipeline_service: Arc<PipelineServiceImpl<PostgresPipelineRepository, PostgresLogRepository, ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, SchedulerServiceImpl<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, GrpcSchedulerClient, PostgresPipelineRepository>>>,
+    pub action_service: Arc<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>>,
+    pub scheduler_service: Arc<Mutex<SchedulerServiceImpl<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, GrpcSchedulerClient, PostgresPipelineRepository>>>,
 }
 
 impl AppContext {
-    pub async fn initialize(postgres: Arc<Postgres>, grpc_url: &str) -> Self {
-        let pipeline_repository: Arc<Box<dyn PipelineRepository + Send + Sync>> = Arc::new(
-            Box::new(PostgresPipelineRepository::new(Arc::clone(&postgres))),
-        );
+    pub async fn initialize(database_url: &str, grpc_url: &str) -> Self {
+        // Initialize Postgres connection pool using provided database URL
+        let postgres = Arc::new(Postgres::new(database_url).await);
 
-        let action_repository: Arc<Box<dyn ActionRepository + Send + Sync>> = Arc::new(Box::new(
-            PostgresActionRepository::new(Arc::clone(&postgres)),
-        ));
+        // Create gRPC client for scheduler service
+        let grpc_client = GrpcSchedulerClient::new(grpc_url)
+            .await
+            .expect("Failed to connect to scheduler");
 
-        let command_repository: Arc<Box<dyn CommandRepository + Send + Sync>> = Arc::new(Box::new(
-            PostgresCommandRepository::new(Arc::clone(&postgres)),
-        ));
+        // Wrap gRPC client in async Mutex for shared state
+        let scheduler_client = Arc::new(Mutex::new(grpc_client));
 
-        let command_service: Arc<Box<dyn CommandService + Send + Sync>> = Arc::new(Box::new(
-            CommandServiceImpl::new(Arc::clone(&command_repository)),
-        ));
-        let action_service: Arc<Box<dyn ActionService + Send + Sync>> = Arc::new(Box::new(
-            ActionServiceImpl::new(Arc::clone(&action_repository), Arc::clone(&command_service)),
-        ));
+        let command_repository = Arc::new(PostgresCommandRepository::new(postgres.clone()));
 
-        let grpc_scheduler_client: Box<dyn SchedulerClient + Send + Sync> =
-            Box::new(GrpcSchedulerClient::new(grpc_url).await.unwrap());
-        let scheduler_client: Arc<Mutex<Box<dyn SchedulerClient + Send + Sync>>> =
-            Arc::new(Mutex::new(grpc_scheduler_client));
+        let action_repository = Arc::new(PostgresActionRepository::new(postgres.clone()));
 
-        let scheduler_service: Arc<Box<dyn SchedulerService + Send + Sync>> = Arc::new(Box::new(
-            SchedulerServiceImpl::new(Arc::clone(&action_service), Arc::clone(&scheduler_client)),
+        let command_service = Arc::new(CommandServiceImpl::new(command_repository));
+
+        let action_service = Arc::new(ActionServiceImpl::new(action_repository, command_service));
+        let pipeline_repository = Arc::new(PostgresPipelineRepository::new(postgres.clone()));
+
+        let log_repository = Arc::new(PostgresLogRepository::new(postgres.clone()));
+
+        let scheduler_service = Arc::new(Mutex::new(SchedulerServiceImpl::new(
+            action_service.clone(),
+            scheduler_client,
+            pipeline_repository.clone(),
+        )));
+
+        let pipeline_service = Arc::new(PipelineServiceImpl::new(
+            pipeline_repository.clone(),
+            log_repository.clone(),
+            action_service.clone(),
+            scheduler_service.clone(),
         ));
-        let pipeline_service: Arc<Box<dyn PipelineService + Send + Sync>> =
-            Arc::new(Box::new(PipelineServiceImpl::new(
-                Arc::clone(&pipeline_repository),
-                Arc::clone(&action_service),
-            )));
 
         Self {
             pipeline_service,
             action_service,
-            command_service,
             scheduler_service,
         }
     }

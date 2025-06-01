@@ -5,6 +5,7 @@ use std::io::Read;
 use std::sync::Arc;
 use tracing::{error, info};
 
+use crate::application::app_context::AppContext;
 use crate::application::ports::pipeline_service::PipelineService;
 use crate::application::services::pipeline_service::DefaultPipelineServiceImpl;
 use crate::parser::pipe_parser::{
@@ -35,11 +36,11 @@ struct PipelineQueryParams {
 
 #[get("/pipeline")]
 pub async fn get_pipelines(
-    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
+    ctx: web::Data<AppContext>,
     query: web::Query<PipelineQueryParams>,
 ) -> impl Responder {
     let verbose = query.verbose.unwrap_or(false);
-    match pipeline_service.find_all(verbose).await {
+    match ctx.pipeline_service.find_all(verbose).await {
         Ok(pipelines) => HttpResponse::Ok().json(pipelines),
         Err(e) => {
             error!("Error fetching pipelines: {:?}", e);
@@ -51,16 +52,16 @@ pub async fn get_pipelines(
 #[get("/pipeline/{id}")]
 pub async fn get_pipeline(
     path: web::Path<PipelineByIDQuery>,
-    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
+    ctx: web::Data<AppContext>,
     query: web::Query<PipelineQueryParams>,
 ) -> impl Responder {
     let id = path.id;
     let verbose = query.verbose.unwrap_or(false);
     info!("Fetching pipeline with id: {}, verbose: {}", id, verbose);
-    match pipeline_service.find_by_id(id).await {
+    match ctx.pipeline_service.find_by_id(id).await {
         Ok(mut pipeline) => {
             if verbose {
-                if let Err(e) = pipeline_service.add_verbose_details(&mut pipeline).await {
+                if let Err(e) = ctx.pipeline_service.add_verbose_details(&mut pipeline).await {
                     error!("Failed to enrich pipeline {} with logs: {:?}", id, e);
                 }
             }
@@ -79,7 +80,7 @@ pub async fn get_pipeline(
 #[post("/pipeline")]
 pub async fn create_pipeline(
     MultipartForm(form): MultipartForm<UploadPipelineForm>,
-    pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
+    ctx: web::Data<AppContext>,
 ) -> impl Responder {
     info!(
         "Uploaded file with size {} with repository {}",
@@ -124,7 +125,7 @@ pub async fn create_pipeline(
         },
     };
 
-    match pipeline_service
+    match ctx.pipeline_service
         .create_manifest_pipeline(domain_manifest, repo_url)
         .await
     {
