@@ -1,7 +1,7 @@
 use crate::logic::agent_pool_logic::Agent as PoolAgent;
 use crate::logic::agent_pool_logic::{compute_score, AgentPool};
 use crate::logic::agent_pool_logic::Hostname;
-use log::{error, info};
+use tracing::{error, info};
 
 //use crate::proto::agent as proto;
 use crate::proto::scheduler as proto;

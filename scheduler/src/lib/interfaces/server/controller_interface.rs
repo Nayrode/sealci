@@ -3,12 +3,10 @@ use crate::interfaces::client::agent_client;
 use crate::logic::action_queue_logic::Action;
 use crate::logic::agent_pool_logic::AgentPool;
 
-use crate::proto::scheduler::ActionStatus;
-//use crate::proto::controller as proto
 use crate::proto::scheduler as proto;
 use proto::controller_server::Controller;
 
-use log::{info, warn};
+use tracing::{info, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;

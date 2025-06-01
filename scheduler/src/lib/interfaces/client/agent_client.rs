@@ -6,7 +6,7 @@ use crate::logic::action_queue_logic::Action;
 use tonic::transport::Channel;
 use tonic::Request;
 use std::error::Error;
-use log::{info, error};
+use tracing::{error};
 
 pub(crate) async fn execution_action(action: Action, agent_address: String) -> Result<tonic::Streaming<proto::ActionResponseStream>, Box<dyn Error + Send + Sync>> {
     // Handle case where hostname is empty
