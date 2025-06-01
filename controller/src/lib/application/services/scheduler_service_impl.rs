@@ -1,4 +1,6 @@
-use crate::domain::action::entities::action::{ActionRequest, ExecutionContext};
+use crate::domain::action::entities::action::{
+    ActionRequest as DomainActionRequest, ExecutionContext,
+};
 use crate::{
     application::ports::{action_service::ActionService, scheduler_service::SchedulerService},
     domain::{
@@ -61,7 +63,6 @@ where
     R: PipelineRepository + Send + Sync,
 {
     async fn execute_pipeline(&self, pipeline_id: i64) -> Result<(), SchedulerError> {
-
         // Find all actions associated with the pipeline
         let mut actions = self
             .action_service
@@ -77,7 +78,10 @@ where
             .map_err(|e| SchedulerError::Error(format!("Failed to find pipeline: {}", e)))?;
 
         let repo_url = pipeline.repository_url.clone();
-        info!("Scheduling actions for pipeline {} with id {} with repository URL: {}", pipeline.name, pipeline_id, repo_url);
+        info!(
+            "Scheduling actions for pipeline {} with id {} with repository URL: {}",
+            pipeline.name, pipeline_id, repo_url
+        );
 
         // Sort actions by their IDs to ensure they are processed in the correct order
         actions.sort_by_key(|action| action.id);
@@ -89,7 +93,7 @@ where
             info!("Scheduling action {} with ID {}", action.name, action.id);
 
             // Prepare the action request for the scheduler gRPC
-            let action_request = ActionRequest {
+            let action_request = DomainActionRequest {
                 action_id: action.id as u32,
                 context: ExecutionContext {
                     r#type: action.r#type as i32,
@@ -104,10 +108,9 @@ where
             let mut response_stream =
                 client.schedule_action(action_request).await.map_err(|e| {
                     error!("Failed to schedule action {}: {:?}", action.id, e);
-                    SchedulerError::Error(format!("Failed to schedule action: {}", e))
+                    SchedulerError::Error("SchedulerError: ".into())
                 })?;
 
-            
             while let Some(item) = response_stream.next().await {
                 // Process each item in the response stream
                 match item {
@@ -121,10 +124,11 @@ where
 
                         // Update action status in the database
                         if let Some(result) = &action_response.result {
+                            let status_str = result.completion.as_proto_name();
                             self.action_service
                                 .update_status(
                                     action_response.action_id as i64,
-                                    &result.completion.to_string(),
+                                    &status_str.to_string(),
                                 )
                                 .await
                                 .map_err(|e| {
