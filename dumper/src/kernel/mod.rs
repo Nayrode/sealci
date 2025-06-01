@@ -2,8 +2,8 @@
 
 #![cfg(target_arch = "x86_64")]
 
-use std::fs::{self, File};
-use std::path::PathBuf;
+use std::fs::File;
+use std::io::Read;
 use std::result;
 
 use linux_loader::bootparam::boot_params;
@@ -123,18 +123,17 @@ fn load_initramfs(
 ///                  configurations.
 pub fn kernel_setup(
     guest_memory: &GuestMemoryMmap,
-    kernel_path: PathBuf,
     cmdline: &Cmdline,
-    initramfs_path: &Option<PathBuf>,
+    mut kernel: File,
+    mut initramfs: File,
 ) -> Result<KernelLoaderResult, Error> {
-    let mut kernel_image = File::open(kernel_path).map_err(Error::IO)?;
     let zero_page_addr = GuestAddress(ZEROPG_START);
 
     // Load the kernel into guest memory.
     let kernel_load = Elf::load(
         guest_memory,
         None,
-        &mut kernel_image,
+        &mut kernel,
         Some(GuestAddress(HIMEM_START)),
     )
     .map_err(Error::KernelLoad)?;
@@ -155,17 +154,16 @@ pub fn kernel_setup(
     )
     .map_err(Error::KernelLoad)?;
 
-    // Handle the initramfs.
-    if let Some(initramfs_path) = initramfs_path {
-        // Load the initramfs into guest memory.
-        let initramfs = fs::read(initramfs_path).map_err(Error::IO)?;
-        let (initramfs_addr, initramfs_size) =
-            load_initramfs(guest_memory, kernel_load.kernel_end, initramfs)?;
+    let mut initramfs_data: Vec<u8> = Vec::new();
+    initramfs
+        .read_to_end(&mut initramfs_data)
+        .map_err(Error::IO)?;
+    let (initramfs_addr, initramfs_size) =
+        load_initramfs(guest_memory, kernel_load.kernel_end, initramfs_data)?;
 
-        // Add the initramfs to the boot parameters.
-        bootparams.hdr.ramdisk_image = initramfs_addr;
-        bootparams.hdr.ramdisk_size = initramfs_size;
-    }
+    // Add the initramfs to the boot parameters.
+    bootparams.hdr.ramdisk_image = initramfs_addr;
+    bootparams.hdr.ramdisk_size = initramfs_size;
 
     // Write the boot parameters in the zeropage.
     LinuxBootConfigurator::write_bootparams::<GuestMemoryMmap>(

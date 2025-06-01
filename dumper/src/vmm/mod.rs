@@ -4,7 +4,6 @@ use std::ops::DerefMut;
 use std::{
     io,
     os::fd::{AsRawFd, RawFd},
-    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -31,7 +30,11 @@ use crate::{
     cpu::cpuid,
     devices::{epoll::EpollContext, serial::DumperSerial},
 };
-use crate::{config::vmm::VmmConfig, devices::epoll::EPOLL_EVENTS_LEN};
+use crate::{config::vmm::VmmCliConfig, devices::epoll::EPOLL_EVENTS_LEN};
+use crate::{
+    config::VmmConfig,
+    cpu::{self, mptable, Vcpu},
+};
 
 #[cfg(target_arch = "x86_64")]
 pub(crate) const MMIO_GAP_END: u64 = 1 << 34;
@@ -68,7 +71,7 @@ pub struct VMM {
 }
 
 impl VMM {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new(config: VmmConfig) -> Result<Self, Error> {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
@@ -85,7 +88,7 @@ impl VMM {
         let epoll = EpollContext::new().map_err(Error::EpollError)?;
         epoll.add_stdin().map_err(Error::EpollError)?;
 
-        let vmm = VMM {
+        let mut vmm = VMM {
             vm_fd,
             kvm,
             guest_memory,
@@ -99,11 +102,11 @@ impl VMM {
             device_mgr,
             cmdline,
         };
-
+        vmm.configure(config)?;
         Ok(vmm)
     }
 
-    pub fn configure_memory(&mut self, mem_size_mb: u32) -> Result<(), Error> {
+    fn configure_memory(&mut self, mem_size_mb: u32) -> Result<(), Error> {
         // Convert memory size from MBytes to bytes.
         let mem_size = ((mem_size_mb as u64) << 20) as usize;
 
@@ -295,14 +298,13 @@ impl VMM {
         }
     }
 
-    pub async fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
+    fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
-        self.configure_allocators(config.mem_size_mb)?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,
-            PathBuf::from(config.kernel_path),
             &self.cmdline,
-            &config.initramfs_path,
+            config.kernel,
+            config.initramfs,
         )?;
         self.configure_io()?;
         self.configure_net_device().await?;
@@ -310,7 +312,7 @@ impl VMM {
         Ok(())
     }
 
-    pub fn configure_io(&mut self) -> Result<(), Error> {
+    fn configure_io(&mut self) -> Result<(), Error> {
         // First, create the irqchip.
         // On `x86_64`, this _must_ be created _before_ the vCPUs.
         // It sets up the virtual IOAPIC, virtual PIC, and sets up the future vCPUs for local APIC.
@@ -329,5 +331,14 @@ impl VMM {
             .map_err(Error::KvmIoctl)?;
 
         Ok(())
+    }
+}
+
+impl TryFrom<VmmCliConfig> for VMM {
+    type Error = Error;
+
+    fn try_from(config: VmmCliConfig) -> Result<Self, Self::Error> {
+        let config: VmmConfig = config.try_into()?;
+        VMM::new(config)
     }
 }
