@@ -1,0 +1,9 @@
+pub mod database;
+pub mod docs;
+pub mod domain;
+pub mod health;
+pub mod infrastructure;
+pub mod parser;
+pub mod tests;
+pub mod server;
+pub mod application;
