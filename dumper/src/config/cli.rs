@@ -3,10 +3,10 @@ use std::{fs::File, path::PathBuf};
 use clap::{self, arg, command, Parser};
 
 use crate::common::error::Error;
+use crate::vmm::VMM;
+use super::{TryIntoVmm, TryIntoVmmConfig, VmmConfig};
 
-use super::VmmConfig;
-
-#[derive(Parser)]
+#[derive(Parser, TryIntoVmm)]
 #[command(version, about, long_about = None)]
 pub struct VmmCliConfig {
     #[arg(long, default_value = "512", help = "Memory size in megabytes")]
@@ -52,15 +52,16 @@ impl VmmConfig {
     }
 }
 
-impl TryInto<VmmConfig> for VmmCliConfig {
-    type Error = Error;
+impl TryIntoVmmConfig for VmmCliConfig {
+    fn try_into(self) -> Result<VmmConfig, Error> {
+        let kernel = File::open(&self.kernel_path).map_err(Error::IO)?;
+        let initramfs = File::open(&self.initramfs_path).map_err(Error::IO)?;
 
-    fn try_into(self) -> Result<VmmConfig, Self::Error> {
         Ok(VmmConfig {
             mem_size_mb: self.mem_size_mb,
             num_vcpus: self.num_vcpus,
-            kernel: File::open(self.kernel_path).map_err(Error::IO)?,
-            initramfs: File::open(self.initramfs_path).map_err(Error::IO)?,
+            kernel,
+            initramfs,
         })
     }
 }

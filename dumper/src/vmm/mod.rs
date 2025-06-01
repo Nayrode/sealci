@@ -23,6 +23,7 @@ use crate::cpu::{self, mptable, Vcpu};
 use crate::devices::virtio;
 use crate::devices::virtio::net::Net;
 use crate::devices::virtio::{Env, MmioConfig};
+use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::kernel;
 use crate::vmm::irq_allocator::IrqAllocator;
 use crate::{
@@ -331,14 +332,5 @@ impl VMM {
             .map_err(Error::KvmIoctl)?;
 
         Ok(())
-    }
-}
-
-impl TryFrom<VmmCliConfig> for VMM {
-    type Error = Error;
-
-    fn try_from(config: VmmCliConfig) -> Result<Self, Self::Error> {
-        let config: VmmConfig = config.try_into()?;
-        VMM::new(config)
     }
 }
