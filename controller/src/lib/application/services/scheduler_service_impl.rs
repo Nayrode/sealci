@@ -61,26 +61,34 @@ where
     R: PipelineRepository + Send + Sync,
 {
     async fn execute_pipeline(&self, pipeline_id: i64) -> Result<(), SchedulerError> {
+
+        // Find all actions associated with the pipeline
         let mut actions = self
             .action_service
             .find_by_pipeline_id(pipeline_id)
             .await
             .map_err(|e| SchedulerError::Error(format!("Failed to find actions: {}", e)))?;
 
+        // Find the pipeline to get its repository URL
         let pipeline = self
             .pipeline_repository
             .find_by_id(pipeline_id)
             .await
             .map_err(|e| SchedulerError::Error(format!("Failed to find pipeline: {}", e)))?;
-        let repo_url = pipeline.repository_url.clone();
 
+        let repo_url = pipeline.repository_url.clone();
+        info!("Scheduling actions for pipeline {} with id {} with repository URL: {}", pipeline.name, pipeline_id, repo_url);
+
+        // Sort actions by their IDs to ensure they are processed in the correct order
         actions.sort_by_key(|action| action.id);
 
+        // Acquire the scheduler client lock to ensure thread safety
         let client = self.scheduler_client.lock().await;
 
         for action in actions {
-            info!("Scheduling action: {}", action.id);
+            info!("Scheduling action {} with ID {}", action.name, action.id);
 
+            // Prepare the action request for the scheduler gRPC
             let action_request = ActionRequest {
                 action_id: action.id as u32,
                 context: ExecutionContext {
@@ -91,15 +99,27 @@ where
                 repo_url: repo_url.clone(),
             };
 
+            // Call the scheduler client to schedule the action and get a response stream
+            // A response stream is a stream of ActionResponse items
             let mut response_stream =
                 client.schedule_action(action_request).await.map_err(|e| {
                     error!("Failed to schedule action {}: {:?}", action.id, e);
                     SchedulerError::Error(format!("Failed to schedule action: {}", e))
                 })?;
 
+            
             while let Some(item) = response_stream.next().await {
+                // Process each item in the response stream
                 match item {
                     Ok(action_response) => {
+                        info!(
+                            "[SCHEDULER] RESPONSE = ActionResponse {{ action_id: {}, log: {:?}, result: {:?} }}",
+                            action_response.action_id,
+                            action_response.log,
+                            action_response.result,
+                        );
+
+                        // Update action status in the database
                         if let Some(result) = &action_response.result {
                             self.action_service
                                 .update_status(
@@ -116,6 +136,8 @@ where
                                 })?;
                         }
 
+                        // Append log data to the action
+                        // This assumes that the action_response.log is a String
                         let log_data = action_response.log.clone();
                         self.action_service
                             .append_log(action_response.action_id as i64, log_data)
@@ -128,6 +150,7 @@ where
                                 SchedulerError::Error(format!("Failed to store log: {}", e))
                             })?;
                     }
+
                     Err(e) => {
                         error!(
                             "Error from scheduler stream for action {}: {:?}",

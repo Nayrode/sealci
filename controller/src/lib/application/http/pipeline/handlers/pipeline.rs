@@ -82,7 +82,7 @@ pub async fn create_pipeline(
     pipeline_service: web::Data<Arc<DefaultPipelineServiceImpl>>,
 ) -> impl Responder {
     info!(
-        "Uploaded file {} with repository {}",
+        "Uploaded file with size {} with repository {}",
         form.file.size,
         form.repo_url.as_str()
     );
