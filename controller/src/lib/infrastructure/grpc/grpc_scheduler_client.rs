@@ -46,8 +46,8 @@ impl DomainActionStatus {
             1 => DomainActionStatus::Scheduled,
             2 => DomainActionStatus::Running,  
             3 => DomainActionStatus::Completed,
-            4 => DomainActionStatus::Error,     
-            _ => DomainActionStatus::Error,
+            4 => DomainActionStatus::Error, 
+            _ => DomainActionStatus::Error, // Default case for unknown status
         }
     }
 }

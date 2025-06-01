@@ -1,4 +1,5 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Build the protobuf files for the scheduler service
     tonic_build::configure()
         .build_server(true)
         .compile(
