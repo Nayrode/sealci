@@ -1,0 +1,275 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Monitor Service API",
+    "description": "API for managing GitHub repository monitoring configurations",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:9001",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/configurations": {
+      "get": {
+        "summary": "Get all configurations",
+        "operationId": "getConfigurations",
+        "responses": {
+          "200": {
+            "description": "List of all listener configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Listener"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a new configuration",
+        "operationId": "addConfiguration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConfigForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listener"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/configurations/{id}": {
+      "get": {
+        "summary": "Get configuration by ID",
+        "operationId": "getConfigurationById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Configuration identifier (repo_owner-repo_name)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listener"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update an existing configuration",
+        "operationId": "updateConfiguration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Configuration identifier (repo_owner-repo_name)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConfigForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration updated successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a configuration",
+        "operationId": "deleteConfiguration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Configuration identifier (repo_owner-repo_name)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration deleted successfully"
+          },
+          "404": {
+            "description": "Configuration not found"
+          }
+        }
+      }
+    },
+    "/configurations/{id}/actions-file": {
+      "get": {
+        "summary": "Get actions file content for a configuration",
+        "operationId": "getActionsFile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Configuration identifier (repo_owner-repo_name)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actions file content",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GitEvent": {
+        "type": "string",
+        "enum": ["Commit", "PullRequest", "All"],
+        "description": "Type of Git event to monitor"
+      },
+      "CreateConfigForm": {
+        "type": "object",
+        "required": [
+          "actions_file",
+          "events",
+          "repository_owner",
+          "repository_name",
+          "github_token"
+        ],
+        "properties": {
+          "actions_file": {
+            "type": "string",
+            "format": "binary",
+            "description": "Actions file to use for this configuration"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitEvent"
+            },
+            "description": "List of Git events to monitor"
+          },
+          "repository_owner": {
+            "type": "string",
+            "description": "GitHub repository owner"
+          },
+          "repository_name": {
+            "type": "string",
+            "description": "GitHub repository name"
+          },
+          "github_token": {
+            "type": "string",
+            "description": "GitHub API token for authentication"
+          }
+        }
+      },
+      "UpdateConfigForm": {
+        "type": "object",
+        "properties": {
+          "actions_file": {
+            "type": "string",
+            "format": "binary",
+            "description": "New actions file to use for this configuration"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitEvent"
+            },
+            "description": "New list of Git events to monitor"
+          }
+        }
+      },
+      "Listener": {
+        "type": "object",
+        "properties": {
+          "repo_owner": {
+            "type": "string",
+            "description": "GitHub repository owner"
+          },
+          "repo_name": {
+            "type": "string",
+            "description": "GitHub repository name"
+          },
+          "repo_url": {
+            "type": "string",
+            "description": "Full URL to the GitHub repository"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitEvent"
+            },
+            "description": "List of Git events being monitored"
+          }
+        }
+      }
+    }
+  }
+}

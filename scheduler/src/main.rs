@@ -1,49 +1,22 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use clap::Parser;
 
-use env_logger;
-use log::info;
-use logic::agent_pool_logic::AgentPool;
-// use logic::action_queue_logic::ActionsQueue;
-use tonic::transport::Server;
-
-mod proto;
-//use proto::agent::agent_server::AgentServer;
-//use proto::controller::controller_server::ControllerServer;
-use proto::scheduler::agent_server::AgentServer;
-use proto::scheduler::controller_server::ControllerServer;
-
-mod interfaces;
-use interfaces::server::agent_interface::AgentService;
-use interfaces::server::controller_interface::ControllerService;
-
-mod logic;
+#[derive(Debug, Clone, Parser)]
+struct Config {
+    #[clap(short, long, default_value = "0.0.0.0:50051")]
+    pub addr: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-	env_logger::init();
+    tracing_subscriber::fmt::init();
 
-	let addr = "[::0]:50051".parse()?;
+    let config = Config::parse();
 
-	// Initializes the Agent Pool and Action queue. They are lost when the Scheduler dies.
-	let agent_pool = Arc::new(Mutex::new(AgentPool::new()));
-	//let action_queue = Arc::new(Mutex::new(ActionsQueue::new()));
+    let app = sealci_scheduler::app::App::new(sealci_scheduler::app::Config{
+        addr: config.addr,
+    });
 
-	// Pass the shared Agent Pool to Agent and Controller services.
-	let agent = AgentService::new(agent_pool.clone());
-	let controller = ControllerService::new(agent_pool.clone());
+    app.run().await?;
 
-	let service = tonic_reflection::server::Builder::configure()
-		.register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
-		.build()?;
-
-  info!("Starting gRPC server at {}", addr);
-	Server::builder()
-		.add_service(service)
-		.add_service(AgentServer::new(agent))
-		.add_service(ControllerServer::new(controller))
-		.serve(addr)
-		.await?;
-
-	Ok(())
+    Ok(())
 }
