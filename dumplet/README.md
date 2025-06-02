@@ -4,22 +4,36 @@
 
 ---
 
-## **✨ Features**
-✅ Pulls a **Docker image** (always forced for now).  
-✅ Creates a **temporary container** _(without running it)_.  
-✅ Exports the **container's filesystem** as a `.tar` archive.  
-✅ **Compresses** the tar file to `.tar.gz` format.  
-✅ Extracts the filesystem and builds a compressed **initramfs image** (`.img` file).  
-✅ **Automatically removes** the container after extraction.  
-✅ **Organizes all outputs** in a structured directory for easy access.  
-✅ Simple and straightforward to use via the **command line interface (CLI)**.
-
----
-
-## **📦 Installation**
+## **Installation**
 ### **Prerequisites**
 - **Docker** must be [installed and running](https://docs.docker.com/get-docker/) on your system.
 - **Rust** & **Cargo** [installed](https://rustup.rs/)
+
+### **Using Dumplet as a Library**
+You can **directly use Dumplet in your Rust project**!
+
+1. In your `Cargo.toml`, add:
+   ```toml
+   [dependencies]
+   dumplet = { path = "../dumplet" }
+   ```
+
+2. In your Rust code, use Dumplet's API:
+   ```rust
+   use dumplet::generate_initramfs_image;
+   use std::fs::File;
+   
+   #[tokio::main]
+   async fn main() -> Result<(), Box<dyn std::error::Error>> {
+       let image_name = "alpine:3.14";
+       let mut initramfs_file: File = generate_initramfs_image(image_name).await?;
+       // You can now read or process `initramfs_file` as needed
+       Ok(())
+   }
+   ```
+
+Dumplet will automatically create a temporary directory, export the filesystem of the image, and return a `File` containing the final `initramfs.img`. No need to specify output paths – it's fully managed for you!
+
 
 ### **Using Dumplet CLI**
 1. Clone the repository:
@@ -42,8 +56,8 @@
 
 ---
 
-## **📂 Output Example**
-After running the example above, you'll get a structured directory containing all build artifacts:
+## CLI Output Example
+When using the CLI, you’ll get a structured directory:
 ```sh
 /tmp/ubuntu-build/
 ├── rootfs.tar          # Original filesystem tar archive
@@ -59,7 +73,7 @@ The **initramfs.img** file can be used directly in your bootloader or kernel con
 
 ---
 
-## **👨‍💻 Contributing**
+## **Contributing**
 Want to contribute? Feel free to **open an issue or a pull request**!  
 To run the project locally:
 ```sh

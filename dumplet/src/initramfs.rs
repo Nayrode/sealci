@@ -3,33 +3,29 @@ use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+
 use crate::errors::DumpletError;
 
-pub fn create_initramfs(rootfs_path: &str, output_img: &str) -> Result<(), DumpletError> {
-    let init_path = Path::new(rootfs_path).join("init");
+pub fn create_initramfs(rootfs_path: &Path, output_img: &Path) -> Result<(), DumpletError> {
+    let init_path = rootfs_path.join("init");
 
-    // Create the init script
-    let init_script = r#"#! /bin/sh
-    # /init executable file in the initramfs
+    let init_script = r#"#!/bin/sh
+        mount -t devtmpfs dev /dev
+        mount -t proc proc /proc
+        mount -t sysfs sysfs /sys
+        ip link set up dev lo
 
-    mount -t devtmpfs dev /dev
-    mount -t proc proc /proc
-    mount -t sysfs sysfs /sys
-    ip link set up dev lo
-
-    exec /sbin/getty -n -l /bin/sh 115200 /dev/console
-    poweroff -f
+        exec /sbin/getty -n -l /bin/sh 115200 /dev/console
+        poweroff -f
     "#;
 
-    let mut init_file = File::create(&init_path)?;
-    init_file.write_all(init_script.as_bytes())?;
+    let mut file = File::create(&init_path)?;
+    file.write_all(init_script.as_bytes())?;
 
-    // Make it executable
     let mut perms = fs::metadata(&init_path)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&init_path, perms)?;
 
-    // Build initramfs using cpio and xz
     let find = Command::new("find")
         .arg(".")
         .arg("-print0")
@@ -55,6 +51,6 @@ pub fn create_initramfs(rootfs_path: &str, output_img: &str) -> Result<(), Dumpl
         return Err(DumpletError::IoError(io::Error::new(io::ErrorKind::Other, "Failed to create initramfs image")));
     }
 
-    println!("🔹 Initramfs image created: {}", output_img);
+    println!("🔹 Initramfs image created: {:?}", output_img);
     Ok(())
 }
