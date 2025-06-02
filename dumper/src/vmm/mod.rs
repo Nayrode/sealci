@@ -11,34 +11,30 @@ mod irq_allocator;
 use event_manager::{EventManager, MutEventSubscriber};
 use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
 use kvm_ioctls::{Kvm, VmFd};
-use linux_loader::loader::{Cmdline, KernelLoaderResult};
+use linux_loader::loader::Cmdline;
+use linux_loader::loader::KernelLoaderResult;
 use std::thread;
 use vm_allocator::{AddressAllocator, AllocPolicy};
 use vm_device::bus::{MmioAddress, MmioRange};
 use vm_device::device_manager::IoManager;
-use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
-use linux_loader::loader::KernelLoaderResult;
 use vm_memory::{
     Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion, ReadVolatile,
 };
+
 use vmm_sys_util::terminal::Terminal;
 
+use crate::config::VmmConfig;
 use crate::cpu::{self, mptable, Vcpu};
+use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::devices::virtio;
 use crate::devices::virtio::net::Net;
 use crate::devices::virtio::{Env, MmioConfig};
-use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::kernel;
 use crate::vmm::irq_allocator::IrqAllocator;
 use crate::{
     common::error::Error,
     cpu::cpuid,
     devices::{epoll::EpollContext, serial::DumperSerial},
-};
-use crate::{config::vmm::VmmCliConfig, devices::epoll::EPOLL_EVENTS_LEN};
-use crate::{
-    config::VmmConfig,
-    cpu::{self, mptable, Vcpu},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -76,7 +72,7 @@ pub struct VMM {
 }
 
 impl VMM {
-    pub fn new<T: Read + ReadVolatile + Seek>(config: VmmConfig<T>) -> Result<Self, Error> {
+    pub async fn new<T: Read + ReadVolatile + Seek>(config: VmmConfig<T>) -> Result<Self, Error> {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
@@ -107,7 +103,7 @@ impl VMM {
             device_mgr,
             cmdline,
         };
-        vmm.configure(config)?;
+        vmm.configure(config).await?;
         Ok(vmm)
     }
 
@@ -303,7 +299,10 @@ impl VMM {
         }
     }
 
-    fn configure<T: Read + ReadVolatile + Seek>(&mut self, config: VmmConfig<T>) -> Result<(), Error> {
+    async fn configure<T: Read + ReadVolatile + Seek>(
+        &mut self,
+        config: VmmConfig<T>,
+    ) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,
@@ -312,7 +311,8 @@ impl VMM {
             config.initramfs,
         )?;
         self.configure_io()?;
-        self.configure_net_device()?;
+        self.configure_allocators(config.mem_size_mb)?;
+        self.configure_net_device().await?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }

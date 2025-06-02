@@ -13,12 +13,14 @@ pub struct VmmConfig<T: Read + ReadVolatile + Seek> {
     pub num_vcpus: u8,
     pub kernel: T,
     pub initramfs: File,
+    pub enable_network: bool,
+    pub network_mac: String,
 }
 
 #[allow(dead_code)]
 impl<T: Read + ReadVolatile + Seek> VmmConfig<T> {
-    fn try_into_vmm(self) -> Result<VMM, Error> {
-        VMM::new(self)
+    async fn try_into_vmm(self) -> Result<VMM, Error> {
+        VMM::new(self).await
     }
 }
 
@@ -27,5 +29,5 @@ pub trait TryIntoVmmConfig<T: Read + ReadVolatile + Seek> {
 }
 
 pub trait TryIntoVmm {
-    fn try_into_vmm(self) -> Result<VMM, Error>;
+    async fn try_into_vmm(self) -> Result<VMM, Error>;
 }

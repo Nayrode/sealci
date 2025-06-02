@@ -19,17 +19,14 @@ vm-memory = { version = "0.16.1", features = ["backend-mmap"] }
 vm-superio = "0.8.0"
 vm-allocator = "0.1.0"
 vmm-sys-util = "0.12.1"
-<<<<<<< HEAD
 event-manager = { version = "0.4.0", features = ["remote_endpoint"] }
-virtio-device = { git = "https://github.com/rust-vmm/vm-virtio.git"}
-virtio-queue = { git = "https://github.com/rust-vmm/vm-virtio.git"}
+virtio-device = { git = "https://github.com/rust-vmm/vm-virtio.git" }
+virtio-queue = { git = "https://github.com/rust-vmm/vm-virtio.git" }
 rtnetlink = "0.14.1"
 vm-device = "0.1.0"
 log = "0.4.27"
 futures = "0.3.31"
-tokio = "1.45.1"
+tokio = { version = "1.45.1", features = ["full"] }
 iptables = "0.5.1"
-=======
 macro_vmm = { path = "./macro_vmm" }
->>>>>>> e4f0d42 (feat:add macro to tranform config into vmm)
-
+tokio-macros = "2.5.0"

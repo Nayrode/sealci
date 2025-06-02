@@ -60,6 +60,8 @@ impl TryIntoVmmConfig<File> for VmmCliConfig {
         Ok(VmmConfig {
             mem_size_mb: self.mem_size_mb,
             num_vcpus: self.num_vcpus,
+            enable_network: self.enable_network,
+            network_mac: self.network_mac.clone(),
             kernel,
             initramfs,
         })

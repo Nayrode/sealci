@@ -29,9 +29,9 @@ pub fn derive_try_into_vmm(item: TokenStream) -> TokenStream {
     let implementations = types_to_implement.into_iter().map(|_| {
         quote! {
             impl TryIntoVmm for #struct_name {
-                fn try_into_vmm(self) -> Result<crate::vmm::VMM, Error> {
+                async fn try_into_vmm(self) -> Result<crate::vmm::VMM, Error> {
                     let config = self.try_into_vmm_config()?;
-                    config.try_into_vmm()
+                    config.try_into_vmm().await
                 }
             }
         }
