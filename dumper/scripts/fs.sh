@@ -15,9 +15,9 @@ mount -t devtmpfs dev /dev
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 ip link set up dev lo
-
 exec /sbin/getty -n -l /bin/sh 115200 /dev/console
 poweroff -f
+whoami
 EOF
 
 chmod +x init

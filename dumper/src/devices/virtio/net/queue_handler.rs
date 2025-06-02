@@ -3,9 +3,8 @@
 
 use std::os::fd::AsRawFd;
 
-use event_manager::{EventOps, Events, MutEventSubscriber};
+use event_manager::{EventOps, EventSet, Events, MutEventSubscriber};
 use log::error;
-use vmm_sys_util::epoll::EventSet;
 use vmm_sys_util::eventfd::EventFd;
 
 use super::super::SingleFdSignalQueue;

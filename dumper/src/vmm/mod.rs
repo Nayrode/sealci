@@ -2,25 +2,30 @@ use std::fmt::Pointer;
 use std::net::Ipv4Addr;
 use std::ops::DerefMut;
 use std::{
-    io,
+    io::{self, Read, Seek},
     os::fd::{AsRawFd, RawFd},
-    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 mod irq_allocator;
 use event_manager::{EventManager, MutEventSubscriber};
-use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
+use kvm_bindings::{KVM_MAX_CPUID_ENTRIES, kvm_userspace_memory_region};
 use kvm_ioctls::{Kvm, VmFd};
-use linux_loader::loader::{Cmdline, KernelLoaderResult};
+use linux_loader::loader::Cmdline;
+use linux_loader::loader::KernelLoaderResult;
 use std::thread;
 use vm_allocator::{AddressAllocator, AllocPolicy};
 use vm_device::bus::{MmioAddress, MmioRange};
 use vm_device::device_manager::IoManager;
-use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
+use vm_memory::{
+    Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion, ReadVolatile,
+};
+
 use vmm_sys_util::terminal::Terminal;
 
-use crate::cpu::{self, mptable, Vcpu};
+use crate::config::VmmConfig;
+use crate::cpu::{self, Vcpu, mptable};
+use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::devices::virtio;
 use crate::devices::virtio::net::Net;
 use crate::devices::virtio::{Env, MmioConfig};
@@ -31,7 +36,6 @@ use crate::{
     cpu::cpuid,
     devices::{epoll::EpollContext, serial::DumperSerial},
 };
-use crate::{config::vmm::VmmConfig, devices::epoll::EPOLL_EVENTS_LEN};
 
 #[cfg(target_arch = "x86_64")]
 pub(crate) const MMIO_GAP_END: u64 = 1 << 34;
@@ -68,7 +72,7 @@ pub struct VMM {
 }
 
 impl VMM {
-    pub fn new() -> Result<Self, Error> {
+    pub async fn new<T: Read + ReadVolatile + Seek>(config: VmmConfig<T>) -> Result<Self, Error> {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
@@ -85,7 +89,7 @@ impl VMM {
         let epoll = EpollContext::new().map_err(Error::EpollError)?;
         epoll.add_stdin().map_err(Error::EpollError)?;
 
-        let vmm = VMM {
+        let mut vmm = VMM {
             vm_fd,
             kvm,
             guest_memory,
@@ -99,11 +103,11 @@ impl VMM {
             device_mgr,
             cmdline,
         };
-
+        vmm.configure(config).await?;
         Ok(vmm)
     }
 
-    pub fn configure_memory(&mut self, mem_size_mb: u32) -> Result<(), Error> {
+    fn configure_memory(&mut self, mem_size_mb: u32) -> Result<(), Error> {
         // Convert memory size from MBytes to bytes.
         let mem_size = ((mem_size_mb as u64) << 20) as usize;
 
@@ -197,7 +201,7 @@ impl VMM {
         Ok(())
     }
 
-    pub async fn configure_net_device(&mut self) -> Result<(), Error> {
+    pub async fn configure_net_device(&mut self, host_interface: String) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
         let range = &self
             .address_allocator
@@ -228,9 +232,9 @@ impl VMM {
         };
 
         let net_args = virtio::net::NetArgs {
-            tap_name: "tap0".to_string(),
+            tap_name: host_interface,
         };
-
+ 
         let net = Net::new(
             mem,
             &mut env,
@@ -251,8 +255,10 @@ impl VMM {
     pub fn run(&mut self) -> Result<(), Error> {
         for mut vcpu in self.vcpus.drain(..) {
             println!("Starting vCPU {:?}", vcpu.index);
-            let _ = thread::Builder::new().spawn(move || loop {
-                vcpu.run();
+            let _ = thread::Builder::new().spawn(move || {
+                loop {
+                    vcpu.run();
+                }
             });
         }
         let stdin = io::stdin();
@@ -264,10 +270,12 @@ impl VMM {
         let epoll_fd = self.epoll.as_raw_fd();
 
         let event_mgr = self.event_mgr.clone();
-        let _ = thread::Builder::new().spawn(move || loop {
-            match event_mgr.lock().unwrap().run() {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to handle events: {:?}", e),
+        let _ = thread::Builder::new().spawn(move || {
+            loop {
+                match event_mgr.lock().unwrap().run() {
+                    Ok(_) => (),
+                    Err(e) => eprintln!("Failed to handle events: {:?}", e),
+                }
             }
         });
 
@@ -295,21 +303,25 @@ impl VMM {
         }
     }
 
-    pub async fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
+    async fn configure<T: Read + ReadVolatile + Seek>(
+        &mut self,
+        config: VmmConfig<T>,
+    ) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         self.configure_allocators(config.mem_size_mb)?;
         self.configure_io()?;
-        self.configure_net_device().await?;
+        self.configure_net_device(config.tap_interface_name).await?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,
-            PathBuf::from(config.kernel_path),
             &self.cmdline,
+            config.kernel,
+            config.initramfs,
         )?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
 
-    pub fn configure_io(&mut self) -> Result<(), Error> {
+    fn configure_io(&mut self) -> Result<(), Error> {
         // First, create the irqchip.
         // On `x86_64`, this _must_ be created _before_ the vCPUs.
         // It sets up the virtual IOAPIC, virtual PIC, and sets up the future vCPUs for local APIC.
