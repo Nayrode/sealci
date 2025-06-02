@@ -15,7 +15,8 @@ impl fmt::Display for DumpletError {
     }
 }
 
-// Implement the `From` trait for the `DumpletError` type
+impl std::error::Error for DumpletError {}
+
 impl From<bollard::errors::Error> for DumpletError {
     fn from(err: bollard::errors::Error) -> Self {
         DumpletError::DockerError(err)
