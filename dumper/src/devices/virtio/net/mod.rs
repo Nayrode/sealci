@@ -46,6 +46,8 @@ const TXQ_INDEX: u16 = 1;
 pub enum Error {
     Virtio(super::Error),
     Tap(tap::Error),
+    VirtQueue(virtio_queue::Error),
+    BridgeError(bridge::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -40,6 +40,14 @@ pub enum Error {
     TerminalConfigure(kvm_ioctls::Error),
     /// Virtio device error
     Virtio(String),
+    /// Mmio
+    Mmio(vm_device::bus::Error),
+    InvalidValue,
+    MaxIrq,
+    IRQOverflowed,
+    NoAllocatorFound,
+    AllocationError(vm_allocator::Error),
+    NetError(crate::devices::virtio::net::Error),
 }
 
 impl fmt::Display for Error {
@@ -50,8 +58,8 @@ impl fmt::Display for Error {
             Error::KernelLoad(e) => write!(f, "Failed to load kernel: {}", e),
             Error::E820Configuration => write!(f, "Invalid E820 configuration"),
             Error::HimemStartPastMemEnd => {
-                        write!(f, "Highmem start address is past the guest memory end")
-                    }
+                write!(f, "Highmem start address is past the guest memory end")
+            }
             Error::IO(e) => write!(f, "I/O error: {}", e),
             Error::KvmIoctl(e) => write!(f, "Error issuing an ioctl to KVM: {}", e),
             Error::Memory(e) => write!(f, "Memory error: {}", e),
@@ -63,6 +71,13 @@ impl fmt::Display for Error {
             Error::TerminalConfigure(e) => write!(f, "Terminal configuration error: {}", e),
             Error::Vcpu(_) => write!(f, "Vcpu error"),
             Error::Virtio(e) => write!(f, "Virtio device error: {}", e),
+            Error::Mmio(error) => write!(f, "Mmio error: {}", error),
+            Error::InvalidValue => write!(f, "Invalid value encountered"),
+            Error::MaxIrq => write!(f, "Maximum IRQ limit reached"),
+            Error::IRQOverflowed => write!(f, "IRQ overflow occurred"),
+            Error::NoAllocatorFound => write!(f, "No allocator found"),
+            Error::AllocationError(error) => write!(f, "Allocation error: {}", error),
+            Error::NetError(_) => write!(f, "Network error"),
         }
     }
 }

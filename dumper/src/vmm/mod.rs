@@ -1,34 +1,37 @@
-use std::{
-    io, os::fd::{AsRawFd, RawFd}, path::PathBuf, sync::{Arc, Mutex}
-};
 use std::fmt::Pointer;
 use std::net::Ipv4Addr;
 use std::ops::DerefMut;
+use std::{
+    io,
+    os::fd::{AsRawFd, RawFd},
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 mod irq_allocator;
-use std::thread;
 use event_manager::{EventManager, MutEventSubscriber};
 use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
 use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::{Cmdline, KernelLoaderResult};
+use std::thread;
 use vm_allocator::{AddressAllocator, AllocPolicy};
 use vm_device::bus::{MmioAddress, MmioRange};
 use vm_device::device_manager::IoManager;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
 use vmm_sys_util::terminal::Terminal;
 
-use crate::{config::vmm::VmmConfig, devices::epoll::EPOLL_EVENTS_LEN};
 use crate::cpu::{self, mptable, Vcpu};
 use crate::devices::virtio;
-use crate::devices::virtio::{Env, MmioConfig};
 use crate::devices::virtio::net::Net;
+use crate::devices::virtio::{Env, MmioConfig};
 use crate::kernel;
+use crate::vmm::irq_allocator::IrqAllocator;
 use crate::{
     common::error::Error,
     cpu::cpuid,
     devices::{epoll::EpollContext, serial::DumperSerial},
 };
-use crate::vmm::irq_allocator::IrqAllocator;
+use crate::{config::vmm::VmmConfig, devices::epoll::EPOLL_EVENTS_LEN};
 
 #[cfg(target_arch = "x86_64")]
 pub(crate) const MMIO_GAP_END: u64 = 1 << 34;
@@ -47,8 +50,7 @@ const SERIAL_IRQ: u32 = 4;
 /// Last usable IRQ ID for virtio device interrupts on x86_64.
 const IRQ_MAX: u8 = 23;
 
-type EventMgr = EventManager<Arc<Mutex<dyn MutEventSubscriber+Send>>>;
-
+type EventMgr = EventManager<Arc<Mutex<dyn MutEventSubscriber + Send>>>;
 
 pub struct VMM {
     vm_fd: Arc<VmFd>,
@@ -70,7 +72,9 @@ impl VMM {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
-        cmdline.insert_str(crate::kernel::CMDLINE).map_err(Error::Cmdline)?;
+        cmdline
+            .insert_str(crate::kernel::CMDLINE)
+            .map_err(Error::Cmdline)?;
         let device_mgr = Arc::new(Mutex::new(IoManager::new()));
         let serial = Arc::new(Mutex::new(
             DumperSerial::new().map_err(Error::SerialCreation)?,
@@ -93,7 +97,7 @@ impl VMM {
             irq_allocator: IrqAllocator::new(SERIAL_IRQ, IRQ_MAX.into()).unwrap(),
             event_mgr: Arc::new(Mutex::new(EventManager::new().unwrap())),
             device_mgr,
-            cmdline
+            cmdline,
         };
 
         Ok(vmm)
@@ -159,7 +163,13 @@ impl VMM {
             .map_err(Error::KvmIoctl)?;
 
         for index in 0..num_vcpus {
-            let vcpu = Vcpu::new(&self.vm_fd, index.into(),self.serial.clone(), self.device_mgr.clone()).map_err(Error::Vcpu)?;
+            let vcpu = Vcpu::new(
+                &self.vm_fd,
+                index.into(),
+                self.serial.clone(),
+                self.device_mgr.clone(),
+            )
+            .map_err(Error::Vcpu)?;
             // Set CPUID.
             let mut vcpu_cpuid = base_cpuid.clone();
             cpuid::filter_cpuid(
@@ -187,21 +197,19 @@ impl VMM {
         Ok(())
     }
 
-    pub async fn configure_net_device(
-        &mut self,
-    ) -> Result<(), Error> {
+    pub async fn configure_net_device(&mut self) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
-        let range = if let Some(allocator) = &self.address_allocator {
-            allocator
-                .to_owned()
-                .allocate(0x1000, DEFAULT_ADDRESS_ALIGNEMNT, DEFAULT_ALLOC_POLICY)
-                .unwrap()
-        } else {
-            // Handle the case where self.address_allocator is None
-            panic!("Address allocator is not initialized");
-        };
-        let mmio_range = MmioRange::new(MmioAddress(range.start()), range.len()).unwrap();
-        let irq = self.irq_allocator.next_irq().unwrap();
+        let range = &self
+            .address_allocator
+            .clone()
+            .ok_or(Error::NoAllocatorFound)?
+            .to_owned()
+            .allocate(0x1000, DEFAULT_ADDRESS_ALIGNEMNT, DEFAULT_ALLOC_POLICY)
+            .map_err(Error::AllocationError)?;
+
+        let mmio_range =
+            MmioRange::new(MmioAddress(range.start()), range.len()).map_err(Error::Mmio)?;
+        let irq = self.irq_allocator.next_irq()?;
         let mmio_cfg = MmioConfig {
             range: mmio_range,
             gsi: irq,
@@ -220,10 +228,19 @@ impl VMM {
         };
 
         let net_args = virtio::net::NetArgs {
-            tap_name: "tap0".to_string()
+            tap_name: "tap0".to_string(),
         };
 
-        let net = Net::new(mem, &mut env, &net_args, Ipv4Addr::new(192,168,1,1), Ipv4Addr::new(255,255,255,0, ), Ipv4Addr::new(192,168,1,2)).await.unwrap();
+        let net = Net::new(
+            mem,
+            &mut env,
+            &net_args,
+            Ipv4Addr::new(192, 168, 1, 1),
+            Ipv4Addr::new(255, 255, 255, 0),
+            Ipv4Addr::new(192, 168, 1, 2),
+        )
+        .await
+        .map_err(Error::NetError)?;
 
         self.net_devices.push(net);
 
@@ -253,7 +270,7 @@ impl VMM {
                 Err(e) => eprintln!("Failed to handle events: {:?}", e),
             }
         });
-        
+
         // Let's start the STDIN polling thread.
         loop {
             let num_events =
@@ -283,7 +300,11 @@ impl VMM {
         self.configure_allocators(config.mem_size_mb)?;
         self.configure_io()?;
         self.configure_net_device().await?;
-        let kernel_load = kernel::kernel_setup(&self.guest_memory, PathBuf::from(config.kernel_path), &self.cmdline)?;
+        let kernel_load = kernel::kernel_setup(
+            &self.guest_memory,
+            PathBuf::from(config.kernel_path),
+            &self.cmdline,
+        )?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }

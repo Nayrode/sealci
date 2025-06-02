@@ -1,16 +1,7 @@
 // Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
-use std::fmt;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Error {
-    InvalidValue,
-    MaxIrq,
-    IRQOverflowed,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
+use crate::common::error::Error;
 
 /// An irq allocator which gives next available irq.
 /// It is mainly used for non-legacy devices.
@@ -25,7 +16,7 @@ pub struct IrqAllocator {
 }
 
 impl IrqAllocator {
-    pub fn new(last_used_irq: u32, last_irq: u32) -> Result<Self> {
+    pub fn new(last_used_irq: u32, last_irq: u32) -> Result<Self, Error> {
         if last_used_irq >= last_irq {
             return Err(Error::InvalidValue);
         }
@@ -35,7 +26,7 @@ impl IrqAllocator {
         })
     }
 
-    pub fn next_irq(&mut self) -> Result<u32> {
+    pub fn next_irq(&mut self) -> Result<u32, Error> {
         self.last_used_irq
             .checked_add(1)
             .ok_or(Error::IRQOverflowed)
@@ -47,18 +38,5 @@ impl IrqAllocator {
                     Ok(irq)
                 }
             })
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let err = match self {
-            Error::MaxIrq => "last_irq IRQ limit reached",
-            Error::IRQOverflowed => "IRQ overflowed",
-            Error::InvalidValue => {
-                "Check the value of last_used and last_irq. las_used should be less than last_irq"
-            }
-        };
-        write!(f, "{}", err) // user-facing output
     }
 }
