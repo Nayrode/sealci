@@ -28,17 +28,11 @@ cd ../examples/quickstart/
 ```
 
 ```sh
-ip tuntap add mode tap tap0 
+ip tuntap add mode tap tap0
 ip link set tap0 up
 ```
 
 Then you can run the VM:
 ```sh
-<<<<<<< HEAD
-cargo run -- --kernel-path ../../vm/linux-cloud-hypervisor/vmlinux
-```
-
-=======
 cargo run --example launch -- --kernel-path vm/linux-cloud-hypervisor/vmlinux --initramfs-path vm/initramfs.img
 ```
->>>>>>> 8984fd5 (feat:building vmm from file)

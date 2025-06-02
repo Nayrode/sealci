@@ -27,17 +27,17 @@ pub struct VmmCliConfig {
         help = "MAC address for the virtio network device"
     )]
     pub network_mac: String,
-    
+
     #[arg(long, help = "The path to the initramfs folder")]
-    pub initramfs_path: Option<PathBuf>,
+    pub initramfs_path: PathBuf,
 }
 
-impl VmmConfig {
+impl VmmCliConfig {
     pub fn new(
         mem_size_mb: u32,
-        kernel_path: String,
+        kernel_path: PathBuf,
         num_vcpus: u8,
-        initramfs_path: Option<PathBuf>,
+        initramfs_path: PathBuf,
         enable_network: bool,
         network_mac: String,
     ) -> Self {

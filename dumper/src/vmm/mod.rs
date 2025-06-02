@@ -312,7 +312,7 @@ impl VMM {
             config.initramfs,
         )?;
         self.configure_io()?;
-        self.configure_net_device().await?;
+        self.configure_net_device()?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }
