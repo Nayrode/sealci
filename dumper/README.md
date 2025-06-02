@@ -27,7 +27,13 @@ Let's go to example to run the VM:
 cd ../examples/quickstart/
 ```
 
+```sh
+ip tuntap add mode tap tap0 
+ip link set tap0 up
+```
+
 Then you can run the VM:
 ```sh
 cargo run -- --kernel-path ../../vm/linux-cloud-hypervisor/vmlinux
 ```
+

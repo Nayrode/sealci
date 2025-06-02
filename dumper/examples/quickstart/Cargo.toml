@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.32", features = ["derive"] }
 dumper= {path = "../../../dumper"}
+tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
