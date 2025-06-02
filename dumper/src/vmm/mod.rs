@@ -9,7 +9,7 @@ use std::{
 
 mod irq_allocator;
 use event_manager::{EventManager, MutEventSubscriber};
-use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
+use kvm_bindings::{KVM_MAX_CPUID_ENTRIES, kvm_userspace_memory_region};
 use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::Cmdline;
 use linux_loader::loader::KernelLoaderResult;
@@ -24,7 +24,7 @@ use vm_memory::{
 use vmm_sys_util::terminal::Terminal;
 
 use crate::config::VmmConfig;
-use crate::cpu::{self, mptable, Vcpu};
+use crate::cpu::{self, Vcpu, mptable};
 use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::devices::virtio;
 use crate::devices::virtio::net::Net;
@@ -201,7 +201,7 @@ impl VMM {
         Ok(())
     }
 
-    pub async fn configure_net_device(&mut self) -> Result<(), Error> {
+    pub async fn configure_net_device(&mut self, host_interface: String) -> Result<(), Error> {
         let mem = Arc::new(self.guest_memory.clone());
         let range = &self
             .address_allocator
@@ -232,9 +232,9 @@ impl VMM {
         };
 
         let net_args = virtio::net::NetArgs {
-            tap_name: "tap0".to_string(),
+            tap_name: host_interface,
         };
-
+ 
         let net = Net::new(
             mem,
             &mut env,
@@ -255,8 +255,10 @@ impl VMM {
     pub fn run(&mut self) -> Result<(), Error> {
         for mut vcpu in self.vcpus.drain(..) {
             println!("Starting vCPU {:?}", vcpu.index);
-            let _ = thread::Builder::new().spawn(move || loop {
-                vcpu.run();
+            let _ = thread::Builder::new().spawn(move || {
+                loop {
+                    vcpu.run();
+                }
             });
         }
         let stdin = io::stdin();
@@ -268,10 +270,12 @@ impl VMM {
         let epoll_fd = self.epoll.as_raw_fd();
 
         let event_mgr = self.event_mgr.clone();
-        let _ = thread::Builder::new().spawn(move || loop {
-            match event_mgr.lock().unwrap().run() {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to handle events: {:?}", e),
+        let _ = thread::Builder::new().spawn(move || {
+            loop {
+                match event_mgr.lock().unwrap().run() {
+                    Ok(_) => (),
+                    Err(e) => eprintln!("Failed to handle events: {:?}", e),
+                }
             }
         });
 
@@ -304,15 +308,15 @@ impl VMM {
         config: VmmConfig<T>,
     ) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
+        self.configure_allocators(config.mem_size_mb)?;
+        self.configure_io()?;
+        self.configure_net_device(config.tap_interface_name).await?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,
             &self.cmdline,
             config.kernel,
             config.initramfs,
         )?;
-        self.configure_io()?;
-        self.configure_allocators(config.mem_size_mb)?;
-        self.configure_net_device().await?;
         self.configure_vcpus(config.num_vcpus, kernel_load)?;
         Ok(())
     }

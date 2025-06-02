@@ -15,6 +15,7 @@ pub struct VmmConfig<T: Read + ReadVolatile + Seek> {
     pub initramfs: File,
     pub enable_network: bool,
     pub network_mac: String,
+    pub tap_interface_name: String,
 }
 
 #[allow(dead_code)]

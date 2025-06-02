@@ -28,28 +28,17 @@ pub struct VmmCliConfig {
     )]
     pub network_mac: String,
 
+    #[arg(
+        long,
+        short,
+        default_value = "tap0",
+        help = "Name of the tap interface to use for networking on the host"
+    )]
+    pub tap_interface_name: String,
+
+
     #[arg(long, help = "The path to the initramfs folder")]
     pub initramfs_path: PathBuf,
-}
-
-impl VmmCliConfig {
-    pub fn new(
-        mem_size_mb: u32,
-        kernel_path: PathBuf,
-        num_vcpus: u8,
-        initramfs_path: PathBuf,
-        enable_network: bool,
-        network_mac: String,
-    ) -> Self {
-        Self {
-            mem_size_mb,
-            kernel_path,
-            num_vcpus,
-            enable_network,
-            network_mac,
-            initramfs_path,
-        }
-    }
 }
 
 impl TryIntoVmmConfig<File> for VmmCliConfig {
@@ -64,6 +53,7 @@ impl TryIntoVmmConfig<File> for VmmCliConfig {
             network_mac: self.network_mac.clone(),
             kernel,
             initramfs,
+            tap_interface_name: self.tap_interface_name.clone(),
         })
     }
 }
