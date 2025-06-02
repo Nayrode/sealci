@@ -1,31 +1,31 @@
 use std::fs::File;
+use std::io::{Read, Seek};
 
 use macro_vmm::TryIntoVmm;
+use vm_memory::ReadVolatile;
 
 use crate::common::error::Error;
 use crate::vmm::VMM;
 pub mod cli;
 
-#[derive(TryIntoVmm)]
-pub struct VmmConfig {
+pub struct VmmConfig<T: Read + ReadVolatile + Seek> {
     pub mem_size_mb: u32,
     pub num_vcpus: u8,
-    pub kernel: File,
+    pub kernel: T,
     pub initramfs: File,
 }
 
-impl TryIntoVmmConfig for VmmConfig {
-    fn try_into(self) -> Result<VmmConfig, Error> {
-        Ok(self)
+#[allow(dead_code)]
+impl<T: Read + ReadVolatile + Seek> VmmConfig<T> {
+    fn try_into_vmm(self) -> Result<VMM, Error> {
+        VMM::new(self)
     }
 }
 
-pub trait TryIntoVmmConfig {
-    fn try_into(self) -> Result<VmmConfig, Error>;
+pub trait TryIntoVmmConfig<T: Read + ReadVolatile + Seek> {
+    fn try_into_vmm_config(self) -> Result<VmmConfig<T>, Error>;
 }
 
 pub trait TryIntoVmm {
-    fn try_into(self) -> Result<VMM, Error>;
+    fn try_into_vmm(self) -> Result<VMM, Error>;
 }
-
-

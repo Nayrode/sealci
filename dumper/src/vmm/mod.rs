@@ -2,7 +2,7 @@ use std::fmt::Pointer;
 use std::net::Ipv4Addr;
 use std::ops::DerefMut;
 use std::{
-    io,
+    io::{self, Read, Seek},
     os::fd::{AsRawFd, RawFd},
     sync::{Arc, Mutex},
 };
@@ -17,6 +17,10 @@ use vm_allocator::{AddressAllocator, AllocPolicy};
 use vm_device::bus::{MmioAddress, MmioRange};
 use vm_device::device_manager::IoManager;
 use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion};
+use linux_loader::loader::KernelLoaderResult;
+use vm_memory::{
+    Address, GuestAddress, GuestMemory, GuestMemoryMmap, GuestMemoryRegion, ReadVolatile,
+};
 use vmm_sys_util::terminal::Terminal;
 
 use crate::cpu::{self, mptable, Vcpu};
@@ -72,7 +76,7 @@ pub struct VMM {
 }
 
 impl VMM {
-    pub fn new(config: VmmConfig) -> Result<Self, Error> {
+    pub fn new<T: Read + ReadVolatile + Seek>(config: VmmConfig<T>) -> Result<Self, Error> {
         let kvm = Kvm::new().map_err(Error::KvmIoctl)?;
         let vm_fd = Arc::new(kvm.create_vm().map_err(Error::KvmIoctl)?);
         let mut cmdline = Cmdline::new(16384).map_err(Error::Cmdline)?;
@@ -299,7 +303,7 @@ impl VMM {
         }
     }
 
-    fn configure(&mut self, config: VmmConfig) -> Result<(), Error> {
+    fn configure<T: Read + ReadVolatile + Seek>(&mut self, config: VmmConfig<T>) -> Result<(), Error> {
         self.configure_memory(config.mem_size_mb)?;
         let kernel_load = kernel::kernel_setup(
             &self.guest_memory,

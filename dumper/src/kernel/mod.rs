@@ -3,14 +3,14 @@
 #![cfg(target_arch = "x86_64")]
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek};
 use std::result;
 
 use linux_loader::bootparam::boot_params;
 use linux_loader::cmdline::Cmdline;
 use linux_loader::configurator::{linux::LinuxBootConfigurator, BootConfigurator, BootParams};
 use linux_loader::loader::{elf::Elf, load_cmdline, KernelLoader, KernelLoaderResult};
-use vm_memory::{Address, Bytes, GuestAddress, GuestMemory, GuestMemoryMmap};
+use vm_memory::{Address, Bytes, GuestAddress, GuestMemory, GuestMemoryMmap, ReadVolatile};
 
 use crate::common::error::Error;
 
@@ -121,10 +121,10 @@ fn load_initramfs(
 ///
 /// * `kernel_cfg` - [`KernelConfig`](struct.KernelConfig.html) struct containing kernel
 ///                  configurations.
-pub fn kernel_setup(
+pub fn kernel_setup<T: Read + ReadVolatile + Seek>(
     guest_memory: &GuestMemoryMmap,
     cmdline: &Cmdline,
-    mut kernel: File,
+    mut kernel: T,
     mut initramfs: File,
 ) -> Result<KernelLoaderResult, Error> {
     let zero_page_addr = GuestAddress(ZEROPG_START);
