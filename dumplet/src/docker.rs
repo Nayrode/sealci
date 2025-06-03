@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use bollard::image::CreateImageOptions;
 use bollard::models::HostConfig;
@@ -12,8 +12,7 @@ use crate::errors::DumpletError;
 pub async fn export_docker_image(
     image_name: &str,
     output_path: &Path,
-    env: Option<Vec<&str>>,
-) -> Result<(), DumpletError> {
+) -> Result<(String, PathBuf), DumpletError> {
     let docker = Docker::connect_with_local_defaults()?;
     println!("🔹 Pulling image {}...", image_name);
 
@@ -27,7 +26,6 @@ pub async fn export_docker_image(
 
     let container_config = bollard::container::Config {
         image: Some(image_name),
-        env,
         host_config: Some(HostConfig {
             auto_remove: Some(true),
             ..Default::default()
@@ -41,6 +39,20 @@ pub async fn export_docker_image(
         .await?;
     let container_id = container.id;
 
+    let container_inspect = docker.inspect_container(&container_id, None).await?;
+    let container_command = container_inspect
+        .config
+        .clone()
+        .and_then(|config| config.cmd)
+        .unwrap_or_default()
+        .join(" ");
+    let container_working_dir = container_inspect
+        .config
+        .and_then(|config| config.working_dir)
+        .unwrap_or_default()
+        .parse::<PathBuf>()
+        .map_err(DumpletError::ParseError)?;
+
     let export_stream = docker.export_container(&container_id);
     let mut file = File::create(output_path)?;
     let mut stream = export_stream;
@@ -50,5 +62,5 @@ pub async fn export_docker_image(
     }
 
     println!("🔹 Export completed: {:?}", output_path);
-    Ok(())
+    Ok((container_command, container_working_dir))
 }

@@ -1,9 +1,10 @@
-use std::fmt;
+use std::{convert::Infallible, fmt};
 
 #[derive(Debug)]
 pub enum DumpletError {
     DockerError(bollard::errors::Error),
     IoError(std::io::Error),
+    ParseError(Infallible),
 }
 
 impl fmt::Display for DumpletError {
@@ -11,6 +12,7 @@ impl fmt::Display for DumpletError {
         match self {
             DumpletError::DockerError(err) => write!(f, "Docker error: {}", err),
             DumpletError::IoError(err) => write!(f, "I/O error: {}", err),
+            DumpletError::ParseError(infallible) => write!(f, "Parse error: {:?}", infallible),
         }
     }
 }

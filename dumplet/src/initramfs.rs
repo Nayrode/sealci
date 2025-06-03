@@ -1,26 +1,47 @@
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::errors::DumpletError;
 
-pub fn create_initramfs(rootfs_path: &Path, output_img: &Path) -> Result<(), DumpletError> {
+pub fn create_initramfs(
+    rootfs_path: &Path,
+    output_img: &Path,
+    env: Option<Vec<&str>>,
+    command: String,
+    working_dir: PathBuf, // This is the directory where the init script will be executed
+) -> Result<(), DumpletError> {
     let init_path = rootfs_path.join("init");
 
-    let init_script = r#"#!/bin/sh
+    let mut init_script = format!(
+        r#"#!/bin/sh
         mount -t devtmpfs dev /dev
         mount -t proc proc /proc
         mount -t sysfs sysfs /sys
         ip link set up dev lo
-        cd ## move to the working directory
-        
-        ## execute the commands
-        
+        cd {}
+
+        "#,
+        working_dir.display()
+    );
+
+    if let Some(env_vars) = env {
+        for var in env_vars {
+            init_script.push_str(&format!("export {}\n", var));
+        }
+    }
+
+    init_script.push_str(&format!(
+        r#"
+        {}
+
         exec /sbin/getty -n -l /bin/sh 115200 /dev/console
         poweroff -f
-    "#;
+    "#,
+        command
+    ));
 
     let mut file = File::create(&init_path)?;
     file.write_all(init_script.as_bytes())?;
@@ -37,7 +58,14 @@ pub fn create_initramfs(rootfs_path: &Path, output_img: &Path) -> Result<(), Dum
         .spawn()?;
 
     let cpio = Command::new("cpio")
-        .args(["--null", "--create", "--verbose", "--owner", "root:root", "--format=newc"])
+        .args([
+            "--null",
+            "--create",
+            "--verbose",
+            "--owner",
+            "root:root",
+            "--format=newc",
+        ])
         .stdin(find.stdout.unwrap())
         .stdout(Stdio::piped())
         .current_dir(rootfs_path)
@@ -51,7 +79,10 @@ pub fn create_initramfs(rootfs_path: &Path, output_img: &Path) -> Result<(), Dum
 
     let status = xz.wait()?;
     if !status.success() {
-        return Err(DumpletError::IoError(io::Error::new(io::ErrorKind::Other, "Failed to create initramfs image")));
+        return Err(DumpletError::IoError(io::Error::new(
+            io::ErrorKind::Other,
+            "Failed to create initramfs image",
+        )));
     }
 
     println!("🔹 Initramfs image created: {:?}", output_img);

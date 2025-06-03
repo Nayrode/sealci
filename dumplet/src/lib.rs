@@ -33,10 +33,17 @@ pub async fn generate_initramfs_bundle(
     let extract_dir = output_path.join("rootfs-content");
     let initramfs_img = output_path.join("initramfs.img");
 
-    export_docker_image(image, &rootfs_tar, env).await?;
+    let (container_cmd, working_dir) = export_docker_image(image, &rootfs_tar).await?;
+
     compress_tar(&rootfs_tar, &rootfs_tar_gz)?;
     extract_tar(&rootfs_tar, &extract_dir)?;
-    create_initramfs(&extract_dir, &initramfs_img)?;
+    create_initramfs(
+        &extract_dir,
+        &initramfs_img,
+        env,
+        container_cmd,
+        working_dir,
+    )?;
 
     Ok(DumpletBundle {
         rootfs_tar,
