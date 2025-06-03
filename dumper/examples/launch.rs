@@ -6,6 +6,6 @@ use dumper::{
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    VmmCliConfig::parse().try_into_vmm().await?.run()?;
+    VmmCliConfig::parse().try_into_vmm().await?.run(true)?;
     Ok(())
 }

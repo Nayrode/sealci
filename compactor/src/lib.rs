@@ -10,6 +10,7 @@ pub mod kernel;
 
 pub struct Compactor {
     vmm: VMM,
+    interactive: bool,
 }
 
 impl Compactor {
@@ -23,7 +24,7 @@ impl Compactor {
             dumplet::generate_initramfs_image(&config.image, Some(envs), config.transfer_files)
                 .await
                 .map_err(Error::DumpletError)?;
-        let config = dumper::config::VmmConfig {
+        let vmm_config = dumper::config::VmmConfig {
             mem_size_mb: 2048,
             num_vcpus: 2,
             kernel: kernel,
@@ -32,11 +33,17 @@ impl Compactor {
             network_mac: "".to_string(),
             tap_interface_name: "tap0".to_string(),
         };
-        let vmm = config.try_into_vmm().await.map_err(Error::DumperError)?;
-        Ok(Self { vmm })
+        let vmm = vmm_config
+            .try_into_vmm()
+            .await
+            .map_err(Error::DumperError)?;
+        Ok(Self {
+            vmm,
+            interactive: config.interactive,
+        })
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
-        self.vmm.run().map_err(Error::DumperError)
+        self.vmm.run(self.interactive).map_err(Error::DumperError)
     }
 }

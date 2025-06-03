@@ -1,4 +1,3 @@
-use std::fmt::Pointer;
 use std::net::Ipv4Addr;
 use std::ops::DerefMut;
 use std::{
@@ -9,7 +8,7 @@ use std::{
 
 mod irq_allocator;
 use event_manager::{EventManager, MutEventSubscriber};
-use kvm_bindings::{KVM_MAX_CPUID_ENTRIES, kvm_userspace_memory_region};
+use kvm_bindings::{kvm_userspace_memory_region, KVM_MAX_CPUID_ENTRIES};
 use kvm_ioctls::{Kvm, VmFd};
 use linux_loader::loader::Cmdline;
 use linux_loader::loader::KernelLoaderResult;
@@ -24,7 +23,7 @@ use vm_memory::{
 use vmm_sys_util::terminal::Terminal;
 
 use crate::config::VmmConfig;
-use crate::cpu::{self, Vcpu, mptable};
+use crate::cpu::{self, mptable, Vcpu};
 use crate::devices::epoll::EPOLL_EVENTS_LEN;
 use crate::devices::virtio;
 use crate::devices::virtio::net::Net;
@@ -234,7 +233,7 @@ impl VMM {
         let net_args = virtio::net::NetArgs {
             tap_name: host_interface,
         };
- 
+
         let net = Net::new(
             mem,
             &mut env,
@@ -252,55 +251,99 @@ impl VMM {
     }
 
     // Run all virtual CPUs.
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self, interactive: bool) -> Result<(), Error> {
+        let mut joins = Vec::new();
         for mut vcpu in self.vcpus.drain(..) {
             println!("Starting vCPU {:?}", vcpu.index);
-            let _ = thread::Builder::new().spawn(move || {
-                loop {
-                    vcpu.run();
-                }
-            });
+            joins.push(
+                thread::Builder::new()
+                    .spawn(move || loop {
+                        vcpu.run();
+                    })
+                    .map_err(Error::VcpuStartError)?,
+            );
         }
-        let stdin = io::stdin();
-        let stdin_lock = stdin.lock();
-        stdin_lock
-            .set_raw_mode()
-            .map_err(Error::TerminalConfigure)?;
-        let mut events = vec![epoll::Event::new(epoll::Events::empty(), 0); EPOLL_EVENTS_LEN];
-        let epoll_fd = self.epoll.as_raw_fd();
 
         let event_mgr = self.event_mgr.clone();
-        let _ = thread::Builder::new().spawn(move || {
+        joins.push(
+            thread::Builder::new()
+                .spawn(move || loop {
+                    match event_mgr.lock().unwrap().run() {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("Failed to handle events: {:?}", e),
+                    }
+                })
+                .map_err(Error::VcpuStartError)?,
+        );
+        if interactive {
+            let stdin = io::stdin();
+
+            let stdin_lock = stdin.lock();
+
+            stdin_lock
+                .set_raw_mode()
+                .map_err(Error::TerminalConfigure)?;
+            let mut events = vec![epoll::Event::new(epoll::Events::empty(), 0); EPOLL_EVENTS_LEN];
+            let epoll_fd = self.epoll.as_raw_fd();
+            // Let's start the STDIN polling thread.
             loop {
-                match event_mgr.lock().unwrap().run() {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("Failed to handle events: {:?}", e),
-                }
-            }
-        });
+                let num_events =
+                    epoll::wait(epoll_fd, -1, &mut events[..]).map_err(Error::EpollError)?;
 
-        // Let's start the STDIN polling thread.
-        loop {
-            let num_events =
-                epoll::wait(epoll_fd, -1, &mut events[..]).map_err(Error::EpollError)?;
+                for event in events.iter().take(num_events) {
+                    let event_data = event.data as RawFd;
 
-            for event in events.iter().take(num_events) {
-                let event_data = event.data as RawFd;
+                    if let libc::STDIN_FILENO = event_data {
+                        let mut out = [0u8; 64];
 
-                if let libc::STDIN_FILENO = event_data {
-                    let mut out = [0u8; 64];
+                        let count = stdin_lock.read_raw(&mut out).map_err(Error::StdinRead)?;
 
-                    let count = stdin_lock.read_raw(&mut out).map_err(Error::StdinRead)?;
+                        // Check for Ctrl+C (0x03)
+                        for &byte in &out[..count] {
+                            if byte == 0x18 {
+                                // Ctrl+C detected, show message and wait for Ctrl+X
+                                println!("\nPress Ctrl+X to quit and kill the VM, or any other key to continue...");
 
-                    self.serial
-                        .lock()
-                        .unwrap()
-                        .serial
-                        .enqueue_raw_bytes(&out[..count])
-                        .map_err(Error::StdinWrite)?;
+                                // Wait for next input
+                                let mut quit_input = [0u8; 1];
+                                match stdin_lock.read_raw(&mut quit_input) {
+                                    Ok(_) => {
+                                        if quit_input[0] == 0x18 {
+                                            match stdin_lock.set_canon_mode() {
+                                                Ok(()) => {}
+                                                Err(e) => println!(
+                                                    "Failed to set canonical mode: {:?}",
+                                                    e
+                                                ),
+                                            }
+
+                                            // Ctrl+X (0x18)
+                                            return Ok(());
+                                        }
+                                        // Any other key continues execution
+                                    }
+                                    Err(_) => {
+                                        // On error, continue execution
+                                    }
+                                }
+                            }
+                        }
+
+                        self.serial
+                            .lock()
+                            .unwrap()
+                            .serial
+                            .enqueue_raw_bytes(&out[..count])
+                            .map_err(Error::StdinWrite)?;
+                    }
                 }
             }
         }
+        for join in joins {
+            join.join().map_err(|_| Error::VcpuRunError)?;
+        }
+
+        Ok(())
     }
 
     async fn configure<T: Read + ReadVolatile + Seek>(
