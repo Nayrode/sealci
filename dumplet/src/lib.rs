@@ -2,6 +2,7 @@ mod docker;
 pub mod errors;
 mod initramfs;
 mod tar_utils;
+mod transferred_file;
 
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};

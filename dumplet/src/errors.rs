@@ -5,6 +5,9 @@ pub enum DumpletError {
     DockerError(bollard::errors::Error),
     IoError(std::io::Error),
     ParseError(Infallible),
+    InvalidFormat,
+
+    InvalidPath,
 }
 
 impl fmt::Display for DumpletError {
@@ -13,6 +16,8 @@ impl fmt::Display for DumpletError {
             DumpletError::DockerError(err) => write!(f, "Docker error: {}", err),
             DumpletError::IoError(err) => write!(f, "I/O error: {}", err),
             DumpletError::ParseError(infallible) => write!(f, "Parse error: {:?}", infallible),
+            DumpletError::InvalidFormat => write!(f, "Invalid format encountered"),
+            DumpletError::InvalidPath => write!(f, "Invalid path provided"),
         }
     }
 }
