@@ -55,7 +55,8 @@ pub struct TransferredFilePathIntoVm(PathBuf, PathBuf);
 impl TransferredFilePathIntoVm {
     pub fn new(rootfs_path: PathBuf, transfer: TransferPath) -> Result<Self, DumpletError> {
         let guest_path = transfer.guest_path();
-        let vm_path = rootfs_path.join(&guest_path);
+        let vm_path = PathBuf::from(format!("{}{}", rootfs_path.display(), guest_path.display()));
+
         Ok(Self(transfer.host_path().to_owned(), vm_path))
     }
     /// Returns the host path.
@@ -69,7 +70,7 @@ impl TransferredFilePathIntoVm {
     }
 }
 
-struct TransferredFile {
+pub struct TransferredFile {
     host_file: File,
     guest_file: File,
 }
@@ -93,7 +94,9 @@ impl TryFrom<TransferredFilePathIntoVm> for TransferredFile {
     /// And it must reference files not folders.
     fn try_from(transfer: TransferredFilePathIntoVm) -> Result<Self, Self::Error> {
         let host_path = transfer.host_path();
+        println!("Host path: {:?}", host_path);
         let guest_path = transfer.guest_path();
+        println!("Guest path: {:?}", guest_path);
         let host_file = File::open(host_path).map_err(DumpletError::IoError)?;
         if let Some(parent) = guest_path.parent() {
             std::fs::create_dir_all(parent).map_err(DumpletError::IoError)?;

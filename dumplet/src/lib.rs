@@ -2,7 +2,7 @@ mod docker;
 pub mod errors;
 mod initramfs;
 mod tar_utils;
-mod transferred_file;
+pub mod transferred_file;
 
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
@@ -25,6 +25,7 @@ pub async fn generate_initramfs_bundle(
     image: &str,
     output_dir: &str,
     env: Option<Vec<&str>>,
+    transfer_files: Vec<String>,
 ) -> Result<DumpletBundle, DumpletError> {
     let output_path = Path::new(output_dir);
     fs::create_dir_all(output_path)?;
@@ -44,6 +45,7 @@ pub async fn generate_initramfs_bundle(
         env,
         container_cmd,
         working_dir,
+        transfer_files,
     )?;
 
     Ok(DumpletBundle {
@@ -54,11 +56,16 @@ pub async fn generate_initramfs_bundle(
     })
 }
 
-pub async fn generate_initramfs_image(image: &str) -> Result<File, DumpletError> {
+pub async fn generate_initramfs_image(
+    image: &str,
+    env: Option<Vec<&str>>,
+    transfer_files: Vec<String>,
+) -> Result<File, DumpletError> {
     let temp_dir = tempdir()?;
     let temp_path = temp_dir.path();
 
-    let bundle = generate_initramfs_bundle(image, temp_path.to_str().unwrap(), None).await?;
+    let bundle =
+        generate_initramfs_bundle(image, temp_path.to_str().unwrap(), env, transfer_files).await?;
     let file = File::open(&bundle.initramfs_img)?;
 
     println!(

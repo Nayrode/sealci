@@ -5,15 +5,25 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::errors::DumpletError;
+use crate::transferred_file::{TransferPath, TransferredFile, TransferredFilePathIntoVm};
 
 pub fn create_initramfs(
     rootfs_path: &Path,
     output_img: &Path,
     env: Option<Vec<&str>>,
     command: String,
-    working_dir: PathBuf, // This is the directory where the init script will be executed
+    working_dir: PathBuf,
+    transfer_files: Vec<String>, // This is the directory where the init script will be executed
 ) -> Result<(), DumpletError> {
     let init_path = rootfs_path.join("init");
+    if !transfer_files.is_empty() {
+        for transfer_string in transfer_files {
+            let transfer_path = TransferPath::try_from(transfer_string.clone())?;
+            let transferred_path_vm =
+                TransferredFilePathIntoVm::new(rootfs_path.to_path_buf(), transfer_path)?;
+            TransferredFile::try_from(transferred_path_vm)?;
+        }
+    }
 
     let mut init_script = format!(
         r#"#!/bin/sh

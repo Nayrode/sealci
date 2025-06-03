@@ -13,6 +13,9 @@ struct Args {
 
     #[arg(long, help = "Environment variables to pass (e.g. --env KEY=VALUE)", num_args = 0.., value_delimiter = ',')]
     env: Vec<String>,
+
+    #[arg(long, help = "List of files to transfer in the format /path/on/host:/path/on/guest", num_args = 0.., value_delimiter = ',')]
+    transfer_files: Vec<String>,
 }
 
 #[tokio::main]
@@ -31,9 +34,14 @@ async fn run(args: &Args) -> Result<(), DumpletError> {
     } else {
         None
     };
-    
-    
-    let bundle = generate_initramfs_bundle(&args.image, &args.output_dir,env_vars).await?;
+
+    let bundle = generate_initramfs_bundle(
+        &args.image,
+        &args.output_dir,
+        env_vars,
+        args.transfer_files.clone(),
+    )
+    .await?;
 
     println!("🔹 Build completed successfully!");
     println!("🔹 Output directory: {}", args.output_dir);
