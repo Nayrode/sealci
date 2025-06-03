@@ -1,0 +1,31 @@
+[package]
+name = "release-agent"
+version = "0.1.0"
+edition = "2024"
+default-run = "sealci-release-agent"
+
+[dependencies]
+clap = { version = "4.5.37", features = ["derive", "env"] }
+dotenv = "0.15.0"
+flate2 = "1.1.1"
+futures = "0.3.31"
+minio = "0.2.0"
+git2 = "0.20.2"
+prost = "0.13"
+tar = "0.4.44"
+tokio = { version = "1.45.0", features = ["full"] }
+tonic = "*"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+sequoia-openpgp = "2.0.0"
+
+[build-dependencies]
+tonic-build = "*"
+
+[[bin]]
+name = "sealci-release-agent"
+path = "src/bin/main.rs"
+
+[lib]
+name = "sealci_release_agent"
+path = "src/lib/lib.rs"
