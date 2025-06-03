@@ -2,14 +2,18 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use bollard::Docker;
 use bollard::image::CreateImageOptions;
 use bollard::models::HostConfig;
+use bollard::Docker;
 use futures_util::stream::StreamExt;
 
 use crate::errors::DumpletError;
 
-pub async fn export_docker_image(image_name: &str, output_path: &Path) -> Result<(), DumpletError> {
+pub async fn export_docker_image(
+    image_name: &str,
+    output_path: &Path,
+    env: Option<Vec<&str>>,
+) -> Result<(), DumpletError> {
     let docker = Docker::connect_with_local_defaults()?;
     println!("🔹 Pulling image {}...", image_name);
 
@@ -23,11 +27,18 @@ pub async fn export_docker_image(image_name: &str, output_path: &Path) -> Result
 
     let container_config = bollard::container::Config {
         image: Some(image_name),
-        host_config: Some(HostConfig { auto_remove: Some(true), ..Default::default() }),
+        env,
+        host_config: Some(HostConfig {
+            auto_remove: Some(true),
+            ..Default::default()
+        }),
+
         ..Default::default()
     };
 
-    let container = docker.create_container::<String, _>(None, container_config).await?;
+    let container = docker
+        .create_container::<String, _>(None, container_config)
+        .await?;
     let container_id = container.id;
 
     let export_stream = docker.export_container(&container_id);

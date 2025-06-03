@@ -10,6 +10,9 @@ struct Args {
 
     #[arg(help = "Path for the output directory")]
     output_dir: String,
+
+    #[arg(long, help = "Environment variables to pass (e.g. --env KEY=VALUE)", num_args = 0.., value_delimiter = ',')]
+    env: Vec<String>,
 }
 
 #[tokio::main]
@@ -23,7 +26,14 @@ async fn main() {
 }
 
 async fn run(args: &Args) -> Result<(), DumpletError> {
-    let bundle = generate_initramfs_bundle(&args.image, &args.output_dir).await?;
+    let env_vars: Option<Vec<&str>> = if !args.env.is_empty() {
+        Some(args.env.iter().map(|s| s.as_str()).collect())
+    } else {
+        None
+    };
+    
+    
+    let bundle = generate_initramfs_bundle(&args.image, &args.output_dir,env_vars).await?;
 
     println!("🔹 Build completed successfully!");
     println!("🔹 Output directory: {}", args.output_dir);

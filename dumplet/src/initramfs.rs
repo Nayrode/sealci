@@ -14,7 +14,10 @@ pub fn create_initramfs(rootfs_path: &Path, output_img: &Path) -> Result<(), Dum
         mount -t proc proc /proc
         mount -t sysfs sysfs /sys
         ip link set up dev lo
-
+        cd ## move to the working directory
+        
+        ## execute the commands
+        
         exec /sbin/getty -n -l /bin/sh 115200 /dev/console
         poweroff -f
     "#;
