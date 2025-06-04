@@ -34,7 +34,7 @@
 **Option 2 : Launch the application with cargo:**
 
 ```bash
-    cargo run -- --controller-host http://localhost:4000 --port 8085
+cargo run -- --controller-host http://localhost:4000 --port 8085
 ```
 
 ## API Endpoints

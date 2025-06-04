@@ -1,4 +1,4 @@
-import {Pipeline} from '@/types'
+import {Monitor, Pipeline} from '@/types'
 import ky from "ky";
 
 /////////////////////////////////////////////////////////////////////////
@@ -319,4 +319,8 @@ export const fetchPipelines = async ({
 export const fetchPipeline = async ({ verbose, id }: { verbose: boolean; id: string }): Promise<Pipeline> => {
   const endpoint = verbose ? `/pipeline/${id}?verbose=true` : `/pipeline/${id}?verbose=false`
   return await ky.get(import.meta.env.VITE_CONTROLLER_ENDPOINT + endpoint).json<Pipeline>()
+}
+
+export const fetchMonitors = async (): Promise<Monitor[]> => {
+  return await ky.get(import.meta.env.VITE_MONITOR_ENDPOINT + '/configurations').json<Monitor[]>()
 }

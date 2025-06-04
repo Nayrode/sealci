@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
 import { usePipelineContext } from '@/contexts/PipelineContext'
+import { SlidersHorizontal } from 'lucide-react'
 
 export function Header() {
   const { currentPipeline } = usePipelineContext()
@@ -43,9 +44,17 @@ export function Header() {
             </>
           )}
         </div>
-        <a href="https://sealci.com/docs" className="underline">
-          Docs
-        </a>
+
+        <div className='flex flex-row items-center gap-12'>
+          <Link to="/configurations" className={cn('flex gap-2 items-center transition-colors hover:text-foreground/80', isDetailPage ? 'text-foreground/60' : 'text-foreground font-medium')}>
+            <SlidersHorizontal className="h-4 w-4" />
+            <p>Configurations</p>
+          </Link>
+
+          <a href="https://sealci.com/docs" className="underline">
+            Docs
+          </a>
+        </div>
       </div>
     </header>
   )

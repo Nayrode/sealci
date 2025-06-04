@@ -1,3 +1,10 @@
+export interface Monitor {
+  repo_owner: string;
+  repo_name: string;
+  repo_url: string;
+  events: string[];
+}
+
 export interface Pipeline {
   id: number;
   repository_url: string;
