@@ -25,13 +25,13 @@ impl Compactor {
                 .await
                 .map_err(Error::DumpletError)?;
         let vmm_config = dumper::config::VmmConfig {
-            mem_size_mb: 2048,
-            num_vcpus: 2,
+            mem_size_mb: config.mem_size_mb,
+            num_vcpus: config.num_vcpus,
             kernel: kernel,
             initramfs: initramfs,
             enable_network: true,
             network_mac: "".to_string(),
-            tap_interface_name: "tap0".to_string(),
+            tap_interface_name: config.tap_interface_name.clone(),
         };
         let vmm = vmm_config
             .try_into_vmm()

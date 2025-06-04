@@ -40,7 +40,7 @@ cargo run -- --image <docker-image-name> --env KEY=VALUE --transfer-files /host/
 ### Example
 
 ```bash
-cargo run -- --image alpine:3.14 --env DEBUG=true,LOG_LEVEL=info --transfer-files /tmp/data:/app/data
+cargo run -- --image alpine:3.14 --env DEBUG=true LOG_LEVEL=info --transfer-files /tmp/data:/app/data
 ```
 
 This command will:
