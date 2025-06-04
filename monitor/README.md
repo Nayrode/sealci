@@ -3,10 +3,13 @@
 `GitHub Monitor` is a Rust application that monitors a specified GitHub repository for new commits and pull requests. When changes are detected, it executes callback functions to trigger actions, such as sending data to a controller. The application also includes an API server for managing configurations and interaction with GitHub.
 
 ## Table of Contents
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Usage](#usage)
-- [API Endpoints](#api-endpoints)
+- [Github Monitor](#github-monitor)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Prerequisites](#prerequisites)
+  - [Usage](#usage)
+  - [API Endpoints](#api-endpoints)
+  - [Example Workflow](#example-workflow)
 
 ## Features
 - Monitors a GitHub repository for new commits and pull requests.
@@ -31,14 +34,8 @@
 **Option 2 : Launch the application with cargo:**
 
 ```bash
-    cargo run -- --repo_owner <owner> --repo_name <name> --github_token <token> --actions_path <path_to_actions_file>
+    cargo run -- --controller-host http://localhost:4000 --port 8085
 ```
-Or, with a config file, you can take example on the one that already exist
-```bash
-    run -- --config "./../configs/config.yaml"
-```
-
-
 
 ## API Endpoints
 The application launches an API server for managing configurations and interacting with the monitored repositories. The API endpoints include:
