@@ -1,4 +1,4 @@
-# Scheduler
+# Scheduler Architecture
 
 ## Contributors
 
@@ -50,7 +50,7 @@ During scheduling of an action, the changes of states are reported the same way 
 - The scheduler does not persist state; if it fails, agents have to reconnect and resubmit their state information.
 
 - The scheduler knows currently registered agents as a pool of computing resources.
-- The scheduler is mostly stateless, and agents must attempt to reconnect to it if the connection is lost between them and the scheduler. 
+- The scheduler is mostly stateless, and agents must attempt to reconnect to it if the connection is lost between them and the scheduler.
 - A gRPC connection exists between an agent and a scheduler, to report health state and resource capacities to the scheduler.
 - If an agent disconnects, it is removed from the resource pool. Any pending actions from a disconnected agent must be re-scheduled to another available agent.
 
