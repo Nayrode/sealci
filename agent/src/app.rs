@@ -4,8 +4,8 @@ use std::{
 };
 
 use bollard::Docker;
-use clap::Parser;
-use tokio::task;
+use sealcid_traits::status::Status;
+use tokio::{sync::RwLock, task};
 use tonic::transport::Server;
 use tracing::info;
 
@@ -26,11 +26,55 @@ pub struct App {
     config: Config,
     scheduler_service: SchedulerService,
     action_service_grpc: ActionServiceServer<ActionsLauncher>,
+    app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), Error>>>>,
+}
+
+impl sealcid_traits::App<Config> for App {
+    type Error = Error;
+
+    async fn run(&self) -> Result<(), Error> {
+        let app_process = self.app_process.clone();
+        let mut app_clone = self.clone();
+        let mut process = app_process.write().await;
+        *process = tokio::spawn(async move {
+            let _ = app_clone.start().await?;
+            Ok(())
+        });
+        Ok(())
+    }
+
+    async fn stop(&self) -> Result<(), Error> {
+        let app_process = self.app_process.clone();
+        let process = app_process.read().await;
+        process.abort();
+        Ok(())
+    }
+
+    async fn configuration(&self) -> Result<impl std::fmt::Display, Error> {
+        Ok(self.config.clone())
+    }
+
+    async fn status(&self) -> Status {
+        let app_process = self.app_process.read().await;
+        if app_process.is_finished() {
+            // Try to get the result without blocking
+            Status::Stopped
+        } else {
+            Status::Running
+        }
+    }
+
+    fn name(&self) -> String {
+        "SealCI".to_string()
+    }
+
+    async fn configure(config: Config) -> Result<Self, Error> {
+        Self::init(config).await
+    }
 }
 
 impl App {
-    pub async fn init() -> Result<Self, Error> {
-        let config = Config::parse();
+    pub async fn init(config: Config) -> Result<Self, Error> {
         let health_service = HealthService::new();
 
         let docker = Arc::new(Docker::connect_with_socket_defaults().unwrap());
@@ -52,6 +96,7 @@ impl App {
             action_service_grpc,
             config,
             scheduler_service,
+            app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
         })
     }
 
