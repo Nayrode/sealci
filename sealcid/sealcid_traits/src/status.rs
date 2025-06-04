@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[allow(dead_code)]
 pub enum Status {
     Running,
     Stopped,

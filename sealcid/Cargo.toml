@@ -1,10 +1,15 @@
+[workspace]
+members = ["sealcid_traits"]
+
+
 [package]
 name = "sealcid"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-
+agent = { path = "../agent" }
+sealcid_traits = { path = "./sealcid_traits" }
 
 
 [lib]

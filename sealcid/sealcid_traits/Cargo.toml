@@ -1,0 +1,10 @@
+[package]
+name = "sealcid_traits"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[lib]
+name = "sealcid_traits"
+path = "src/lib.rs"
