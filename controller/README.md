@@ -7,6 +7,9 @@
 - Rustup
 - Cargo
 - Sqlx CLI
+    ```bash
+    cargo install sqlx-cli
+    ```
 - Docker + Docker compose
 
 ### Launching the controller (DEV)
