@@ -1,18 +1,18 @@
-# Architecture Document for Controller Component
+# Controller Architecture
 
 ## Glossary
 
-- A **pipeline** is a set of actions which define a workflow. A pipeline is declared in a `yaml` file (please, refer to the [structure](<#pipeline yaml definition>) section for the reference of each sections of this file).
+- A **pipeline** is a set of actions which define a workflow. A pipeline is declared in a `yaml` file (please, refer to the [structure](<#pipeline-yaml-definition>) section for the reference of each sections of this file).
 - An **action** is a set of shell commands to execute on a specific environment.
 
 ## Description
 
-The Controller is the component that translates a pipeline declaration file into a list of actions to be executed, it also reflects the result of each actions so the user knows if a pipeline succeeded or failed. To do that, it receives [pipelines](#pipeline), parse them into a set of [actions](#actions) and send these actions sequentially to the Scheduler, for each of these actions, the Scheduler **must** notify the Controller when a action has been scheduled and has been completed successfully or encountered an error. Thanks to these information, the Controller is able to provide information about a pipeline state to anyone (the Monitor or any other client).
+The Controller is the component that translates a pipeline declaration file into a list of actions to be executed, it also reflects the result of each actions so the user knows if a pipeline succeeded or failed. To do that, it receives [pipelines](<-yaml-definition>), parse them into a set of [actions](#actions) and send these actions sequentially to the Scheduler, for each of these actions, the Scheduler **must** notify the Controller when a action has been scheduled and has been completed successfully or encountered an error. Thanks to these information, the Controller is able to provide information about a pipeline state to anyone (the Monitor or any other client).
 
 ## Features
 
-- Users send pipelines containing actions to execute. Pipelines are described through [YAML formatted files](<#Pipeline YAML Definition>).
-- Users can track there actions by getting the logs from the Agent, the states of the action : `PENDING`, `SCHEDULED`, `RUNNING`, `COMPLETED`. Refer to the sections [actions/states](#States).
+- Users send pipelines containing actions to execute. Pipelines are described through [YAML formatted files](<#pipeline-yaml-definition>).
+- Users can track there actions by getting the logs from the Agent, the states of the action : `PENDING`, `SCHEDULED`, `RUNNING`, `COMPLETED`. Refer to the sections [actions/states](#states).
 - The controller makes sure that each actions are executed in the right order (by design) and doesn't execute the next action if the previous one has failed.
 
 ### Pipeline YAML definition
@@ -46,7 +46,7 @@ Pipelines also define their execution environment, i.e the container image they 
 
 There can be multiple actions in one pipeline but the `action id` must be unique.
 
-**Usage example**
+**Example usage:**
 
 ```yaml
 actions:

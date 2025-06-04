@@ -1,4 +1,4 @@
-# Monitor
+# Monitor Architecture
 
 ## Contributors
 
