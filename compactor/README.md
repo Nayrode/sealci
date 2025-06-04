@@ -39,8 +39,15 @@ cargo run -- --image <docker-image-name> --env KEY=VALUE --transfer-files /host/
 
 ### Example
 
+Setup a tap interface for networking:
+```sh
+ip tuntap add mode tap tap0
+ip link set tap0 up
+```
+
+
 ```bash
-cargo run -- --image alpine:3.14 --env DEBUG=true LOG_LEVEL=info --transfer-files /tmp/data:/app/data
+cargo run -- --image alpine:3.14 --env DEBUG=true LOG_LEVEL=info --transfer-files /tmp/data:/app/data --tap-interface-name tap0
 ```
 
 This command will:
@@ -53,4 +60,3 @@ This command will:
 - Rust (latest stable version)
 - Docker installed and running
 - Tap interface (`tap0`) configured for networking
-
