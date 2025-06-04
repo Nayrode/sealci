@@ -6,7 +6,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import PipelinesPage from "./pages/pipelines.tsx";
 import PipelinePage from "./pages/pipeline.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import MonitorConfigurations from "./pages/monitor-configurations.tsx";
+import Monitors from "./pages/monitors.tsx";
 
 const queryClient = new QueryClient();
 
@@ -18,7 +18,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<App />}>
             <Route path="/" element={<PipelinesPage />} />
             <Route path="/:id" element={<PipelinePage />} />
-            <Route path="/configurations" element={<MonitorConfigurations />} />
+            <Route path="/configurations" element={<Monitors />} />
           </Route>
         </Routes>
       </BrowserRouter>

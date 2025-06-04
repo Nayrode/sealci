@@ -1,4 +1,4 @@
-import {Monitor, Pipeline} from '@/types'
+import {CreateMonitor, Monitor, Pipeline} from '@/types'
 import ky from "ky";
 
 /////////////////////////////////////////////////////////////////////////
@@ -323,4 +323,17 @@ export const fetchPipeline = async ({ verbose, id }: { verbose: boolean; id: str
 
 export const fetchMonitors = async (): Promise<Monitor[]> => {
   return await ky.get(import.meta.env.VITE_MONITOR_ENDPOINT + '/configurations').json<Monitor[]>()
+}
+
+export const createMonitor = async (monitor: CreateMonitor): Promise<Monitor> => {
+  const formData = new FormData()
+  formData.append('actions_file', monitor.file)
+  formData.append('repository_owner', monitor.repo_owner)
+  formData.append('repository_name', monitor.repo_name)
+  formData.append('github_token', monitor.github_token)
+  formData.append('events', monitor.event)
+
+  return await ky.post(import.meta.env.VITE_MONITOR_ENDPOINT + '/configurations', {
+    body: formData,
+  }).json<Monitor>()
 }

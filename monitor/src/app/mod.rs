@@ -50,7 +50,9 @@ impl App {
                     .allow_any_header()
                     .max_age(3600);
 
-                ActixApp::new().wrap(cors)
+                ActixApp::new()
+                    .wrap(cors)
+                    .wrap(actix_web::middleware::Logger::default())
                     .app_data(Data::new(listener_service.clone()))
                     .service(get_configurations)
                     .service(get_configuration_by_id)

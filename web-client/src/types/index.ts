@@ -5,6 +5,14 @@ export interface Monitor {
   events: string[];
 }
 
+export interface CreateMonitor {
+  repo_owner: string;
+  repo_name: string;
+  event: string;
+  file: File;
+  github_token: string;
+}
+
 export interface Pipeline {
   id: number;
   repository_url: string;

@@ -1,7 +1,7 @@
 import { fetchMonitors } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 
-export const useMonitors = () => {
+export const useGetMonitors = () => {
   const { data, error, isPending, refetch } = useQuery({
     queryKey: ['monitors'],
     queryFn: () => fetchMonitors(),
