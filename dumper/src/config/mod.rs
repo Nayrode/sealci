@@ -20,7 +20,7 @@ pub struct VmmConfig<T: Read + ReadVolatile + Seek> {
 
 #[allow(dead_code)]
 impl<T: Read + ReadVolatile + Seek> VmmConfig<T> {
-    async fn try_into_vmm(self) -> Result<VMM, Error> {
+    pub async fn try_into_vmm(self) -> Result<VMM, Error> {
         VMM::new(self).await
     }
 }

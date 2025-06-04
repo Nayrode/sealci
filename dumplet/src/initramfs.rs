@@ -45,14 +45,13 @@ pub fn create_initramfs(
 
     init_script.push_str(&format!(
         r#"
-        {}
+        {} &
 
         exec /sbin/getty -n -l /bin/sh 115200 /dev/console
         poweroff -f
     "#,
         command
     ));
-
     let mut file = File::create(&init_path)?;
     file.write_all(init_script.as_bytes())?;
 
