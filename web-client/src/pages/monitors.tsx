@@ -23,7 +23,7 @@ export default function MonitorsPage() {
 
                 {isLoading.get ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[...Array(6)].map((_, i) => (
+                        {[...Array(4)].map((_, i) => (
                             <div key={i} className="w-full border border-gray-200 rounded-xl animate-pulse p-4">
                                 <div className="flex flex-col gap-6">
                                     <div className="h-5 bg-gray-300 rounded w-1/3"></div>

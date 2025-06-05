@@ -1,8 +1,7 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react'
 import type { CreatePipeline, Pipeline } from '@/types'
 import { useGetPipelines } from '@/hooks/use-pipelines';
 import { useParams } from 'react-router-dom';
-import { fetchPipeline } from '@/lib/api';
 
 type PipelineContextType = {
   pipelines: Pipeline[] | undefined;
@@ -14,9 +13,9 @@ type PipelineContextType = {
     remove: boolean;
   };
   addPipeline: (pipeline: CreatePipeline) => void;
-  getPipeline: (repoUrl: number) => Pipeline | undefined;
+  getPipeline: (id: number) => Pipeline | undefined;
   updatePipeline: (pipeline: CreatePipeline) => void;
-  removePipeline: (repoUrl: string) => void;
+  removePipeline: (id: number) => void;
   reloadPipelines: () => void;
 }
 
@@ -24,53 +23,40 @@ const PipelineContext = createContext<PipelineContextType | undefined>(undefined
 
 export function PipelineProvider({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>()
-  const { data: fetchedPipelines, isPending, refetch } = useGetPipelines(true)
+  const { data: fetchedPipelines, isFetching, refetch } = useGetPipelines(true)
 
   const [pipelines, setPipelines] = useState<Pipeline[] | undefined>(fetchedPipelines)
   const [currentPipeline, setCurrentPipeline] = useState<Pipeline | undefined>(undefined)
 
-  const getPipeline = async (id: number): Promise<Pipeline | undefined> => {
-    if (pipelines && !isPending) {
-      return pipelines?.find(p => p.id === id)
-    }
-
-    const pipeline = await fetchPipeline({ id: +id, verbose: true })
-    return pipeline
-  }
-
-  const handleGetPipelinePage = async (id: string | undefined): Promise<Pipeline | undefined> => {
-    if (!id) {
-      setCurrentPipeline(undefined)
-      return
-    }
-
-    const pipeline = await getPipeline(+id)
-    if (!pipeline) return
-
-    setCurrentPipeline(pipeline)
-  }
+  const getPipeline = useCallback((id: number): Pipeline | undefined => {
+    return pipelines?.find(p => p.id === id)
+  }, [pipelines])
 
   useEffect(() => {
     setPipelines(fetchedPipelines)
   }, [fetchedPipelines])
 
   useEffect(() => {
-    handleGetPipelinePage(id)
-  }, [id])
+    if (id !== undefined) {
+      setCurrentPipeline(getPipeline(+id))
+    } else {
+      setCurrentPipeline(undefined)
+    }
+  }, [pipelines, id, getPipeline])
 
-  const values = {
+  const values: PipelineContextType = {
     pipelines: pipelines,
     currentPipeline: currentPipeline,
     isLoading: {
-      get: isPending,
+      get: isFetching,
       add: false,
       update: false,
-      remove: false
+      remove: false,
     },
     addPipeline: (pipeline: CreatePipeline) => {},
     getPipeline: getPipeline,
     updatePipeline: (pipeline: CreatePipeline) => {},
-    removePipeline: (repoUrl: string) => {},
+    removePipeline: (id: number) => {},
     reloadPipelines: () => refetch(),
   }
 

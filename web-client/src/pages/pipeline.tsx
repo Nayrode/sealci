@@ -48,7 +48,13 @@ export default function PipelinePage() {
       {isLoading.get ? (
         <div className="space-y-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-[100px] rounded-md bg-muted animate-pulse" />
+            <div key={i} className="flex flex-row justify-between w-full h-[50px] border border-gray-200 rounded-md bg-muted animate-pulse p-4">
+              <div className="flex flex-row gap-2 w-full">
+                  <div className="h-5 bg-gray-300 rounded w-[110px]"></div>
+                  <div className="h-5 bg-gray-300 rounded w-1/4"></div>
+              </div>
+              <div className="h-5 bg-gray-300 rounded w-[200px]"></div>
+            </div>
           ))}
         </div>
       ) : !currentPipeline ? (

@@ -20,7 +20,7 @@ type MonitorContextType = {
 const MonitorContext = createContext<MonitorContextType | undefined>(undefined)
 
 export function MonitorProvider({ children }: { children: ReactNode }) {
-  const { data: fetchedMonitors, isPending, refetch } = useGetMonitors()
+  const { data: fetchedMonitors, isFetching, refetch } = useGetMonitors()
 
   const [monitors, setMonitors] = useState<Monitor[] | undefined>(fetchedMonitors)
 
@@ -39,10 +39,10 @@ export function MonitorProvider({ children }: { children: ReactNode }) {
   const values = {
     monitors,
     isLoading: {
-      get: isPending,
+      get: isFetching,
       add: false,
       update: false,
-      remove: false
+      remove: false,
     },
     addMonitor: addMonitor,
     updateMonitor: (monitor: CreateMonitor) => {
