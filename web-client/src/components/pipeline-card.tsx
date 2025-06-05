@@ -50,12 +50,12 @@ export function PipelineCard({ pipeline }: PipelineCardProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center text-sm text-muted-foreground mb-2">
-            <GitBranch className="h-4 w-4 mr-1" />
+          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+            <GitBranch className="h-4 w-4" />
             <span className="truncate">{repoName}</span>
           </div>
-          <div className="text-sm text-muted-foreground">
-            <Clock className="h-4 w-4 inline mr-1" />
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
             <span>{pipeline.actions.length} actions</span>
           </div>
         </CardContent>
