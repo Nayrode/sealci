@@ -15,19 +15,19 @@ where
 impl<App, Config> SealedService<App, Config>
 where
     App: sealcid_traits::App<Config>,
-    Config: Display,
+    Config: Display + Clone,
 {
     pub async fn restart_with_config(
-        &mut self,
-        config: impl Into<Config> + Copy,
+        &self,
+        config: impl Into<Config> + Clone,
     ) -> Result<(), App::Error> {
         let app = &self.app.read().await;
         if let Err(_) = app.stop().await {
             tracing::error!("Failed to stop the app {}", app.name());
         }
-        let new_app = App::configure(config.into()).await?;
+        let new_app = App::configure(config.clone().into()).await?;
         *self.app.write().await = new_app;
-        *self.config.write().await = config.into();
+        *self.config.write().await = config.clone().into();
         let enabled = *self.enabled.read().await;
         if enabled {
             let app = &self.app.read().await;
