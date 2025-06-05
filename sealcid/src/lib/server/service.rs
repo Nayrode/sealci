@@ -40,11 +40,11 @@ where
         let enabled = *self.enabled.read().await;
         if enabled {
             let app = self.app.read().await;
-            if let Err(e) = app.stop().await {
-                tracing::error!("Failed to stop the app {}: {}", app.name(), e);
+            if let Err(_) = app.stop().await {
+                tracing::error!("Failed to stop the app {}", app.name());
             }
-            if let Err(e) = app.run().await {
-                tracing::error!("Failed to start the app {}: {}", app.name(), e);
+            if let Err(_) = app.run().await {
+                tracing::error!("Failed to start the app {}", app.name());
             }
         } else {
             tracing::warn!(
@@ -69,8 +69,8 @@ where
 
     pub async fn enable(&mut self) -> Result<(), App::Error> {
         let app = &self.app.read().await;
-        if let Err(e) = app.stop().await {
-            tracing::error!("Failed to start the app {}: {}", app.name(), e);
+        if let Err(_) = app.stop().await {
+            tracing::error!("Failed to start the app {}", app.name());
         }
         *self.enabled.write().await = true;
         Ok(())
@@ -78,8 +78,8 @@ where
 
     pub async fn disable(&mut self) -> Result<(), App::Error> {
         let app = &self.app.read().await;
-        if let Err(e) = app.stop().await {
-            tracing::error!("Failed to stop the app {}: {}", app.name(), e);
+        if let Err(_) = app.stop().await {
+            tracing::error!("Failed to stop the app {}", app.name());
         }
         *self.enabled.write().await = false;
         Ok(())

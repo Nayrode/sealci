@@ -4,6 +4,7 @@ pub trait Apply<Config> {
 }
 
 pub struct AgentMutation {
+    pub enable_agent: bool,
     // Example: http://hugo.fr
     pub agent_host: Option<String>,
     // Example: 8080
@@ -23,6 +24,7 @@ impl Apply<agent::config::Config> for AgentMutation {
 }
 
 pub struct SchedulerMutation {
+    pub enable_agent: bool,
     // Example: http://hugo.fr
     pub scheduler_host: Option<String>,
     // Example: 8080
@@ -34,6 +36,7 @@ pub struct MonitorMutation {
 }
 
 pub struct ControllerMutation {
+    pub enable_agent: bool,
     // Example: http://hugo.fr
     pub controller_host: Option<String>,
     // Example: 8080
@@ -43,6 +46,8 @@ pub struct ControllerMutation {
 }
 
 pub struct ReleaseAgentMutation {
+    pub enable_agent: bool,
+
     pub release_agent_host: Option<String>,
     // Example: 8080
     pub release_agent_port: Option<String>,
