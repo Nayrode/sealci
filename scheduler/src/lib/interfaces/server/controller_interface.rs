@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use crate::interfaces::client::agent_client;
 
 use crate::logic::action_queue_logic::Action;
@@ -35,7 +37,9 @@ impl Controller for ControllerService {
         let action_request = request.into_inner();
 
         // Validate ActionRequest fields
-        let (runner_type, container_image) = self.validate_action_request(&action_request)?;
+        let (runner_type, container_image) = self.validate_action_request(&action_request).map_err(|e| {
+            Error::GrpcRequestError(tonic::Status::invalid_argument(e.to_string()))
+        })?;
 
         info!(
             "Received Action request: {}, Runner type: {}",
@@ -50,7 +54,7 @@ impl Controller for ControllerService {
             None => {
                 warn!("No Agents available to execute Action");
                 // Send back an error response now, and close the stream.
-                let (tx, rx) = mpsc::unbounded_channel();
+                let (tx, rx) = mpsc::unbounded_channel::<Result<proto::ActionResponse, tonic::Status>>();
                 let error_response = proto::ActionResponse {
                     action_id: action_request.action_id,
                     log: "No agents available".to_string(),
@@ -64,7 +68,10 @@ impl Controller for ControllerService {
             }
         };
 
-        let agent_ip = agent.get_ip_address().to_string();
+        let agent_ip = agent.get_ip_address().map_err(|e| {
+            warn!("Failed to get Agent IP address: {}", e);
+            tonic::Status::internal(format!("Failed to get Agent IP address: {}", e))
+        })?;
 
         // Create the action object
         let action = Action::new(
@@ -98,9 +105,9 @@ impl Controller for ControllerService {
                                 let completion = match result.exit_code {
                                     Some(exit_code) => {
                                         if exit_code == 0 {
-                                            3
+                                            proto::ActionStatus::Completed.into()
                                         } else {
-                                            4
+                                            proto::ActionStatus::Error.into()
                                         }
                                     }
                                     None => result.completion,
@@ -127,7 +134,15 @@ impl Controller for ControllerService {
                 }
                 Err(e) => {
                     warn!("Failed to execute Action: {}", e);
-                    let _ = tx.send(Err(tonic::Status::internal("Failed to execute Action")));
+                    let error_response = proto::ActionResponse {
+                        action_id: action_request.action_id,
+                        log: format!("Failed to execute Action: {}", e),
+                        result: Some(proto::ActionResult {
+                            completion: proto::ActionStatus::Error.into(),
+                            exit_code: None,
+                        }),
+                    };
+                    let _ = tx.send(Ok(error_response));
                 }
             }
         });
@@ -143,20 +158,20 @@ impl ControllerService {
     fn validate_action_request(
         &self,
         action_request: &proto::ActionRequest,
-    ) -> Result<(proto::RunnerType, Option<String>), tonic::Status> {
+    ) -> Result<(proto::RunnerType, Option<String>), Error> {
         let context = action_request
             .context
             .clone()
-            .ok_or_else(|| tonic::Status::invalid_argument("Context field is missing"))?;
+            .ok_or_else(|| Error::GrpcRequestError(tonic::Status::invalid_argument("Context field is missing")))?;
 
         // Convert `context.r#type` (which is an `i32`) to a `RunnerType`
         let runner_type = proto::RunnerType::try_from(context.r#type)
-            .map_err(|_| tonic::Status::invalid_argument("Invalid RunnerType"))?;
+            .map_err(|_| Error::GrpcRequestError(tonic::Status::invalid_argument("Invalid RunnerType")))?;
 
         let container_image = context
             .container_image
             .clone()
-            .ok_or_else(|| tonic::Status::invalid_argument("ContainerImage field is missing"))?;
+            .ok_or_else(|| Error::GrpcRequestError(tonic::Status::invalid_argument("ContainerImage field is missing")))?;
 
         Ok((runner_type, Some(container_image)))
     }
