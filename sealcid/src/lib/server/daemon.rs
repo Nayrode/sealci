@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use agent::{app::App as AgentApp, config::Config as AgentConfig};
+use controller::{application::App as ControllerApp, config::Config as ControllerConfig};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -17,13 +18,16 @@ use crate::{
 pub struct Daemon {
     pub global_config: Arc<RwLock<GlobalConfig>>,
     pub agent: SealedService<AgentApp, AgentConfig>,
+    pub controller: SealedService<ControllerApp, ControllerConfig>,
 }
 
 impl Daemon {
-    pub fn new(global_config: GlobalConfig, agent: AgentApp) -> Self {
+    pub fn new(global_config: GlobalConfig, agent: AgentApp, controller: ControllerApp) -> Self {
         Self {
             global_config: Arc::new(RwLock::new(global_config.clone())),
             agent: SealedService::new(agent, global_config.clone()),
+            controller: SealedService::new(controller,
+                global_config.clone()),
         }
     }
 
@@ -49,7 +53,17 @@ impl Daemon {
                 // Placeholder for monitor toggle logic
             }
             Services::Controller(toggle) => {
-                // Placeholder for controller toggle logic
+                if toggle {
+                    self.controller
+                        .enable()
+                        .await
+                        .map_err(Error::ToggleControllerError)?;
+                } else {
+                    self.controller
+                        .disable()
+                        .await
+                        .map_err(Error::ToggleControllerError)?;
+                }
             }
         }
 
@@ -78,8 +92,13 @@ impl Daemon {
     }
 
     pub async fn mutate_controller(&mut self, config: ControllerMutation) -> Result<(), Error> {
-        // Placeholder for monitor mutation logic
-        // Restart controller, monitor
+        let global_config = self.global_config.read().await;
+        let mut controller_config: ControllerConfig = global_config.to_owned().into();
+        let config = config.apply(&mut controller_config);
+        self.controller
+            .restart_with_config(config)
+            .await
+            .map_err(Error::RestartControllerError)?;
         Ok(())
     }
 }

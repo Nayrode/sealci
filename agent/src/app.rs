@@ -43,6 +43,10 @@ impl sealcid_traits::App<Config> for App {
         Ok(())
     }
 
+    async fn configure(config: Config) -> Result<Self, Error> {
+        Self::init(config).await
+    }
+
     async fn stop(&self) -> Result<(), Error> {
         let app_process = self.app_process.clone();
         let process = app_process.read().await;
@@ -66,10 +70,6 @@ impl sealcid_traits::App<Config> for App {
 
     fn name(&self) -> String {
         "SealCI".to_string()
-    }
-
-    async fn configure(config: Config) -> Result<Self, Error> {
-        Self::init(config).await
     }
 }
 

@@ -44,3 +44,13 @@ impl Into<agent::config::Config> for GlobalConfig {
         }
     }
 }
+
+impl Into<controller::config::Config> for GlobalConfig {
+    fn into(self) -> controller::config::Config {
+        controller::config::Config {
+            http: self.controller_host + ":" + &self.controller_port,
+            database_url: self.database_url,
+            grpc: self.scheduler_host + ":" + &self.scheduler_port,
+        }
+    }
+}

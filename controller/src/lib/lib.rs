@@ -7,3 +7,4 @@ pub mod parser;
 pub mod tests;
 pub mod server;
 pub mod application;
+pub mod config;

@@ -38,6 +38,21 @@ pub struct ControllerMutation {
     pub database_url: Option<String>,
 }
 
+impl Apply<controller::config::Config> for ControllerMutation {
+    fn apply(self, config: &mut controller::config::Config) -> controller::config::Config {
+        if let Some(host) = self.controller_host {
+            config.http = host;
+        }
+        if let Some(port) = self.controller_port {
+            config.http += &*(":".to_owned() + port.as_str());
+        }
+        if let Some(db_url) = self.database_url {
+            config.database_url = db_url;
+        }
+        config.to_owned()
+    }
+}
+
 pub struct ReleaseAgentMutation {
     pub enable_agent: bool,
 

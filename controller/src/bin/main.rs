@@ -18,40 +18,7 @@ use dotenv::dotenv;
 use futures::lock::Mutex;
 use std::sync::Arc;
 use tracing::info;
-
-#[derive(Parser, Debug)]
-struct Args {
-    /// HTTP listen address (host:port).
-    /// Precedence (see clap docs: defaults < env < CLI):
-    /// 1. --http CLI flag
-    /// 2. HTTP env var (from OS or .env)
-    /// If unset, clap will report an error.
-    /// Example values:
-    ///   --http 127.0.0.1:8080
-    ///   HTTP=0.0.0.0:8000
-    #[clap(env, long)]
-    pub http: String,
-
-    /// Database connection string.
-    /// Precedence:
-    /// 1. --database-url CLI flag
-    /// 2. DATABASE_URL env var
-    /// If unset, clap will report an error.
-    /// Example:
-    ///   --database-url postgres://user:pass@localhost:5432/mydb
-    #[clap(env, long)]
-    pub database_url: String,
-
-    /// gRPC scheduler service endpoint.
-    /// Precedence:
-    /// 1. --grpc CLI flag
-    /// 2. GRPC env var
-    /// If unset, clap will report an error.
-    /// Example:
-    ///   --grpc http://127.0.0.1:50051
-    #[clap(env, long)]
-    pub grpc: String,
-}
+use controller::config::Config;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -61,7 +28,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     // Parse command line arguments and environment variables into Args struct
-    let args = Args::parse();
+    let args = Config::parse();
 
     // Debug print the provided arguments for verification
     println!("Parsed args: {:?}", args);
