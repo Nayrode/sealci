@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use agent::{app::App as AgentApp, config::Config as AgentConfig};
+use controller::{application::App as ControllerApp, config::Config as ControllerConfig};
+use monitor::{app::App as MonitorApp, config::Config as MonitorConfig};
 use tokio::sync::RwLock;
 
 use crate::{
     common::{
         error::Error,
         mutation::{
-            Apply, ControllerMutation, MonitorMutation, ReleaseAgentMutation, SchedulerMutation,
+            Apply, ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
         },
         service_enum::Services,
     },
@@ -17,13 +19,18 @@ use crate::{
 pub struct Daemon {
     pub global_config: Arc<RwLock<GlobalConfig>>,
     pub agent: SealedService<AgentApp, AgentConfig>,
+    pub controller: SealedService<ControllerApp, ControllerConfig>,
+    pub monitor: SealedService<MonitorApp, MonitorConfig>,
 }
 
 impl Daemon {
-    pub fn new(global_config: GlobalConfig, agent: AgentApp) -> Self {
+    pub fn new(global_config: GlobalConfig, agent: AgentApp, controller: ControllerApp, monitor: MonitorApp) -> Self {
         Self {
             global_config: Arc::new(RwLock::new(global_config.clone())),
             agent: SealedService::new(agent, global_config.clone()),
+            controller: SealedService::new(controller,
+                global_config.clone()),
+            monitor: SealedService::new(monitor, global_config),
         }
     }
 
@@ -49,7 +56,17 @@ impl Daemon {
                 // Placeholder for monitor toggle logic
             }
             Services::Controller(toggle) => {
-                // Placeholder for controller toggle logic
+                if toggle {
+                    self.controller
+                        .enable()
+                        .await
+                        .map_err(Error::ToggleControllerError)?;
+                } else {
+                    self.controller
+                        .disable()
+                        .await
+                        .map_err(Error::ToggleControllerError)?;
+                }
             }
         }
 
@@ -68,18 +85,6 @@ impl Daemon {
     pub async fn mutate_scheduler(&mut self, config: SchedulerMutation) -> Result<(), Error> {
         // Placeholder for scheduler mutation logic
         // Restart agent, scheduler
-        Ok(())
-    }
-
-    pub async fn mutate_monitor(&mut self, config: MonitorMutation) -> Result<(), Error> {
-        // Placeholder for monitor mutation logic
-        // Restart  monitor
-        Ok(())
-    }
-
-    pub async fn mutate_controller(&mut self, config: ControllerMutation) -> Result<(), Error> {
-        // Placeholder for monitor mutation logic
-        // Restart controller, monitor
         Ok(())
     }
 }

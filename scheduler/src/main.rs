@@ -1,7 +1,7 @@
 use clap::Parser;
 
 #[derive(Debug, Clone, Parser)]
-struct Config {
+pub struct Config {
     #[clap(short, long, default_value = "0.0.0.0:50051")]
     pub addr: String,
 }
