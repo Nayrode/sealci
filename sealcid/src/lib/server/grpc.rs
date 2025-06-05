@@ -1,9 +1,12 @@
 use agent::config::Config as AgentConfig;
+use controller::config::Config as ControllerConfig;
+use monitor::config::Config as MonitorConfig;
 use tonic::{Request, Response, Status, async_trait};
 use monitor::{config::Config as MonitorConfig};
 use controller::{config::Config as ControllerConfig};
 use sealci_scheduler::config::Config as SchedulerConfig;
 
+use crate::server::config::Update;
 use crate::{
     common::{
         error::Error,
@@ -14,7 +17,6 @@ use crate::{
     },
     server::daemon::Daemon,
 };
-use crate::server::config::{GlobalConfig, Update};
 
 #[async_trait]
 impl DaemonGrpc for Daemon {
@@ -25,7 +27,7 @@ impl DaemonGrpc for Daemon {
         let global_config = self.global_config.read().await;
         let mut agent_config: AgentConfig = global_config.to_owned().into();
         self.agent
-            .restart_with_config(agent_config)
+            .restart_with_config(agent_config.clone())
             .await
             .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
         Ok(Response::new(()))
@@ -36,7 +38,7 @@ impl DaemonGrpc for Daemon {
     ) -> Result<Response<()>, tonic::Status> {
         todo!()
     }
-    
+
     async fn mutate_scheduler(
         &self,
         request: Request<SchedulerMutation>,
@@ -73,7 +75,7 @@ impl DaemonGrpc for Daemon {
         let global_config = self.global_config.read().await;
         let mut monitor_config: MonitorConfig = global_config.to_owned().into();
         self.monitor
-            .restart_with_config(monitor_config)
+            .restart_with_config(monitor_config.clone())
             .await
             .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
         Ok(Response::new(()))

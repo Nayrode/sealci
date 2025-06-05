@@ -36,7 +36,7 @@ where
         Ok(())
     }
 
-    pub async fn restart(&mut self) -> Result<(), App::Error> {
+    pub async fn restart(&self) -> Result<(), App::Error> {
         let enabled = *self.enabled.read().await;
         if enabled {
             let app = self.app.read().await;
@@ -67,7 +67,7 @@ where
         *self.enabled.read().await
     }
 
-    pub async fn enable(&mut self) -> Result<(), App::Error> {
+    pub async fn enable(&self) -> Result<(), App::Error> {
         let app = &self.app.read().await;
         if let Err(_) = app.stop().await {
             tracing::error!("Failed to start the app {}", app.name());
@@ -76,7 +76,7 @@ where
         Ok(())
     }
 
-    pub async fn disable(&mut self) -> Result<(), App::Error> {
+    pub async fn disable(&self) -> Result<(), App::Error> {
         let app = &self.app.read().await;
         if let Err(_) = app.stop().await {
             tracing::error!("Failed to stop the app {}", app.name());
