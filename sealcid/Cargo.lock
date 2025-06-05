@@ -1391,6 +1391,8 @@ version = "0.1.0"
 dependencies = [
  "agent",
  "sealcid_traits",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

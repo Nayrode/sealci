@@ -4,7 +4,7 @@ use crate::status::Status;
 pub mod status;
 
 pub trait App<Config: Display>: Sized {
-    type Error;
+    type Error: Display;
 
     /// Runs the application.
     /// It should store a thread handler like `JoinHandle` or similar

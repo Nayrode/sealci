@@ -1,0 +1,87 @@
+use std::{fmt::Display, sync::Arc};
+
+use tokio::sync::RwLock;
+
+pub struct SealedService<App, Config>
+where
+    App: sealcid_traits::App<Config>,
+    Config: Display,
+{
+    pub app: Arc<RwLock<App>>,
+    enabled: Arc<RwLock<bool>>,
+    pub config: Arc<RwLock<Config>>,
+}
+
+impl<App, Config> SealedService<App, Config>
+where
+    App: sealcid_traits::App<Config>,
+    Config: Display,
+{
+    pub async fn restart_with_config(
+        &mut self,
+        config: impl Into<Config> + Copy,
+    ) -> Result<(), App::Error> {
+        let app = &self.app.read().await;
+        if let Err(_) = app.stop().await {
+            tracing::error!("Failed to stop the app {}", app.name());
+        }
+        let new_app = App::configure(config.into()).await?;
+        *self.app.write().await = new_app;
+        *self.config.write().await = config.into();
+        let enabled = *self.enabled.read().await;
+        if enabled {
+            let app = &self.app.read().await;
+            app.run().await?;
+        }
+        Ok(())
+    }
+
+    pub async fn restart(&mut self) -> Result<(), App::Error> {
+        let enabled = *self.enabled.read().await;
+        if enabled {
+            let app = self.app.read().await;
+            if let Err(e) = app.stop().await {
+                tracing::error!("Failed to stop the app {}: {}", app.name(), e);
+            }
+            if let Err(e) = app.run().await {
+                tracing::error!("Failed to start the app {}: {}", app.name(), e);
+            }
+        } else {
+            tracing::warn!(
+                "App {} is not enabled, skipping restart",
+                self.app.read().await.name()
+            );
+        }
+        Ok(())
+    }
+
+    pub fn new(app: App, config: impl Into<Config>) -> Self {
+        Self {
+            app: Arc::new(RwLock::new(app)),
+            enabled: Arc::new(RwLock::new(true)),
+            config: Arc::new(RwLock::new(config.into())),
+        }
+    }
+
+    pub async fn is_enabled(&self) -> bool {
+        *self.enabled.read().await
+    }
+
+    pub async fn enable(&mut self) -> Result<(), App::Error> {
+        let app = &self.app.read().await;
+        if let Err(e) = app.stop().await {
+            tracing::error!("Failed to start the app {}: {}", app.name(), e);
+        }
+        *self.enabled.write().await = true;
+        Ok(())
+    }
+
+    pub async fn disable(&mut self) -> Result<(), App::Error> {
+        let app = &self.app.read().await;
+        if let Err(e) = app.stop().await {
+            tracing::error!("Failed to stop the app {}: {}", app.name(), e);
+        }
+        *self.enabled.write().await = false;
+        Ok(())
+    }
+}
