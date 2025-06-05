@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use actix_web::{web::Data, App as ActixApp, HttpServer};
+use actix_cors::Cors;
 use tracing::info;
 
 use crate::{
@@ -39,10 +40,19 @@ impl App {
         // Initialize the application, set up routes, etc.
         info!("Application is running...");
         let listener_service = self.listener_service.clone();
+
         HttpServer::new({
             let listener_service = listener_service.clone();
             move || {
+                let cors = Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header()
+                    .max_age(3600);
+
                 ActixApp::new()
+                    .wrap(cors)
+                    .wrap(actix_web::middleware::Logger::default())
                     .app_data(Data::new(listener_service.clone()))
                     .service(get_configurations)
                     .service(get_configuration_by_id)

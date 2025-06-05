@@ -1,17 +1,58 @@
-@import url("https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@300..900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Jost:ital,wght@0,100..900;1,100..900&display=swap");
+/* Police PixelCode pour les titres */
+@font-face {
+  font-family: 'PixelCode';
+  src: url('/font/PixelCode.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* Police Geist Sans pour le contenu général */
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('https://fonts.cdnfonts.com/s/96874/GeistSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('https://fonts.cdnfonts.com/s/96874/GeistSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('https://fonts.cdnfonts.com/s/96874/GeistSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #1b1b1b;
-}
-
 @layer base {
-  :root {
-    --radius: 0.5rem;
+  /* * {
+    @apply font-geist;
+  } */
+
+  /* h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-pixel;
+  } */
+
+  * {
+    @apply font-pixel;
+  }
+
+  body {
+    @apply flex min-h-screen items-start justify-center;
   }
 }

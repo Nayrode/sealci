@@ -13,7 +13,9 @@ cargo run --bin scheduler_mock
 
 Then start an agent:
 ```sh
-cargo run --bin agent
+cargo run --bin sealci-agent
+
+cargo run --bin sealci-agent -- --shost http://localhost:50051 --ahost http://localhost --port 9001
 ```
 
 ## Workflow
