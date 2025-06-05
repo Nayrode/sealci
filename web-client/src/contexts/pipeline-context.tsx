@@ -23,7 +23,7 @@ const PipelineContext = createContext<PipelineContextType | undefined>(undefined
 
 export function PipelineProvider({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id: string }>()
-  const { data: fetchedPipelines, isPending, refetch } = useGetPipelines(false)
+  const { data: fetchedPipelines, isPending, refetch } = useGetPipelines(true)
 
   const [pipelines, setPipelines] = useState<Pipeline[] | undefined>(fetchedPipelines)
   const [currentPipeline, setCurrentPipeline] = useState<Pipeline | undefined>(undefined)

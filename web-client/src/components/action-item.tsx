@@ -1,7 +1,8 @@
 import type { Action } from '@/types'
 import { StatusBadge } from './status-badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Code, Terminal } from 'lucide-react'
+import {Code, TerminalIcon} from 'lucide-react'
+import Terminal from './terminal'
 
 interface ActionItemProps {
   action: Action
@@ -18,7 +19,7 @@ export function ActionItem({ action }: ActionItemProps) {
               <span className="font-medium">{action.name}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Terminal className="h-4 w-4" />
+              <TerminalIcon className="h-4 w-4" />
               <span>{action.commands.length} commandes</span>
             </div>
           </div>
@@ -42,14 +43,10 @@ export function ActionItem({ action }: ActionItemProps) {
             {action.logs && action.logs.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                  <Terminal className="h-4 w-4" />
+                  <TerminalIcon className="h-4 w-4" />
                   Logs
                 </h4>
-                <div className="bg-black text-green-400 p-3 rounded-md text-sm font-mono h-[200px] overflow-y-auto">
-                  {action.logs.map((log, index) => (
-                    <div key={index}>{log}</div>
-                  ))}
-                </div>
+                <Terminal logs={action.logs} />
               </div>
             )}
           </div>
