@@ -316,7 +316,7 @@ export const fetchPipelines = async ({
   return await ky.get(import.meta.env.VITE_CONTROLLER_ENDPOINT + endpoint).json<Pipeline[]>()
 }
 
-export const fetchPipeline = async ({ verbose, id }: { verbose: boolean; id: string }): Promise<Pipeline> => {
+export const fetchPipeline = async ({ verbose, id }: { verbose: boolean; id: number }): Promise<Pipeline> => {
   const endpoint = verbose ? `/pipeline/${id}?verbose=true` : `/pipeline/${id}?verbose=false`
   return await ky.get(import.meta.env.VITE_CONTROLLER_ENDPOINT + endpoint).json<Pipeline>()
 }

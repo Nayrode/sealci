@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect } from 'react
 import type { CreatePipeline, Pipeline } from '@/types'
 import { useGetPipelines } from '@/hooks/use-pipelines';
 import { useParams } from 'react-router-dom';
+import { fetchPipeline } from '@/lib/api';
 
 type PipelineContextType = {
   pipelines: Pipeline[] | undefined;
@@ -28,8 +29,25 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [pipelines, setPipelines] = useState<Pipeline[] | undefined>(fetchedPipelines)
   const [currentPipeline, setCurrentPipeline] = useState<Pipeline | undefined>(undefined)
 
-  const getPipeline = (id: number): Pipeline | undefined => {
-    return pipelines?.find(p => p.id === id)
+  const getPipeline = async (id: number): Promise<Pipeline | undefined> => {
+    if (pipelines && !isPending) {
+      return pipelines?.find(p => p.id === id)
+    }
+
+    const pipeline = await fetchPipeline({ id: +id, verbose: true })
+    return pipeline
+  }
+
+  const handleGetPipelinePage = async (id: string | undefined): Promise<Pipeline | undefined> => {
+    if (!id) {
+      setCurrentPipeline(undefined)
+      return
+    }
+
+    const pipeline = await getPipeline(+id)
+    if (!pipeline) return
+
+    setCurrentPipeline(pipeline)
   }
 
   useEffect(() => {
@@ -37,15 +55,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   }, [fetchedPipelines])
 
   useEffect(() => {
-    if (!id) {
-      setCurrentPipeline(undefined)
-      return
-    }
-
-    const pipeline = getPipeline(+id)
-    if (!pipeline) return
-
-    setCurrentPipeline(pipeline)
+    handleGetPipelinePage(id)
   }, [id])
 
   const values = {
@@ -74,21 +84,3 @@ export function usePipelineContext() {
   }
   return context
 }
-
-//   const [pipeline, setPipeline] = useState<Pipeline | undefined>(undefined)
-
-//   useEffect(() => {
-//     if (!id) return
-
-//     // Récupérer la pipeline depuis le contexte
-//     const fetchedPipeline = getPipeline(+id)
-//     if (fetchedPipeline) {
-//       setPipeline(fetchedPipeline)
-//     } else {
-//       // Si la pipeline n'est pas trouvée, recharger les pipelines
-//       reloadPipelines()
-//     }
-
-//     // Optionnel : mettre à jour le titre de la page
-//     document.title = fetchedPipeline ? `Pipeline - ${fetchedPipeline.name}` : 'Chargement...'
-//   }, [id, getPipeline, reloadPipelines])
