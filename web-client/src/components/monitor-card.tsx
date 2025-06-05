@@ -9,7 +9,7 @@ interface MonitorCardProps {
 export default function MonitorCard({ monitor }: MonitorCardProps) {
 
     return (
-        <Card className="h-full transition-all ">
+        <Card className="h-full transition-all">
             <CardHeader>
                 <CardTitle className="text-lg font-medium font-pixel">
                     {monitor.repo_name}

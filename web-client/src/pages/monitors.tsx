@@ -2,13 +2,10 @@ import MonitorCard from "@/components/monitor-card"
 import MonitorModal from "@/components/monitor-modal"
 import { Button } from "@/components/ui/button"
 import { useMonitorContext } from "@/contexts/monitor-context"
-import { CirclePlus, RefreshCw } from "lucide-react"
-import { useState } from "react"
+import {  RefreshCw } from "lucide-react"
 
 export default function MonitorsPage() {
     const { monitors, isLoading, addMonitor, realoadMonitors } = useMonitorContext()
-
-    const [openMonitorModal, setOpenMonitorModal] = useState(false)
 
     return (
         <>
@@ -20,10 +17,7 @@ export default function MonitorsPage() {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading.get ? 'animate-spin' : ''}`} />
                             Actualiser
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => setOpenMonitorModal(true)} disabled={isLoading.get}>
-                            <CirclePlus className={`h-4 w-4 mr-2`} />
-                            Ajouter
-                        </Button>
+                        <MonitorModal disabled={isLoading.get} onSubmit={addMonitor}></MonitorModal>
                     </div>
                 </div>
 
@@ -55,11 +49,6 @@ export default function MonitorsPage() {
                     </div>
                 )}
             </main>
-            {
-                openMonitorModal && (
-                    <MonitorModal closeModal={() => setOpenMonitorModal(false)} onSubmit={addMonitor} />
-                )
-            }
         </>
     )
 }

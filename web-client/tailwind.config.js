@@ -8,6 +8,12 @@ export default {
         geist: ['Geist Sans', 'sans-serif'],
         pixel: ['PixelCode', 'monospace'],
       },
+      colors: {
+        'background': '#FFFFFF',
+        'popover': '#FFFFFF',
+        'primary': '#f5f5f5',
+        'accent': '#f5f5f5'
+      },
       keyframes: {
         'accordion-down': {
           from: {
