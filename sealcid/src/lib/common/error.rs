@@ -6,12 +6,12 @@ pub enum Error {
     ToggleAgentError(agent::models::error::Error),
 }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Into<String> for Error {
+    fn into(self) -> String {
         match self {
-            Error::Unhandled => write!(f, "Unhandled error"),
-            Error::RestartAgentError(_) => write!(f, "Restart agent error"),
-            Error::ToggleAgentError(_) => write!(f, "Toggle agent error"),
+            Error::Unhandled => "An unhandled error occurred".to_string(),
+            Error::RestartAgentError(e) => format!("Failed to restart agent: {}", e),
+            Error::ToggleAgentError(e) => format!("Failed to toggle agent: {}", e),
         }
     }
 }

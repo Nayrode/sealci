@@ -1,57 +1,54 @@
 syntax = "proto3";
-
+import "google/protobuf/empty.proto";
 package sealcid;
 
 service Daemon {
-  rpc MutateAgent(AgentMutation) returns (MutationResponse);
-  rpc MutateReleaseAgent(ReleaseAgentMutation) returns (MutationResponse);
-  rpc MutateScheduler(SchedulerMutation) returns (MutationResponse);
-  rpc MutateMonitor(MonitorMutation) returns (MutationResponse);
-  rpc MutateController(ControllerMutation) returns (MutationResponse);
+    rpc MutateAgent(AgentMutation) returns (google.protobuf.Empty);
+    rpc MutateReleaseAgent(ReleaseAgentMutation) returns (google.protobuf.Empty);
+    rpc MutateScheduler(SchedulerMutation) returns (google.protobuf.Empty);
+    rpc MutateMonitor(MonitorMutation) returns (google.protobuf.Empty);
+    rpc MutateController(ControllerMutation) returns (google.protobuf.Empty);
 }
 
-message MutationResponse {
-  bool success = 1;
-  string error_message = 2;
-}
+
 
 // AgentMutation
 message AgentMutation {
   bool enable_agent = 1;
-  string agent_host = 2; // optional
-  uint32 agent_port = 3; // optional
+  optional string agent_host = 2; // optional
+  optional uint32 agent_port = 3; // optional
 }
 
 // SchedulerMutation
 message SchedulerMutation {
-  bool enable_agent = 1;
-  string scheduler_host = 2; // optional
-  string scheduler_port = 3; // optional
+   bool enable_agent = 1;
+  optional string scheduler_host = 2; // optional
+  optional string scheduler_port = 3; // optional
 }
 
 // MonitorMutation
 message MonitorMutation {
-  string monitor_port = 1; // optional
+  optional string monitor_port = 1; // optional
 }
 
 // ControllerMutation
 message ControllerMutation {
-  bool enable_agent = 1;
-  string controller_host = 2; // optional
-  string controller_port = 3; // optional
-  string database_url = 4; // optional
+    bool enable_agent = 1;
+    optional string controller_host = 2; // optional
+    optional string controller_port = 3; // optional
+    optional string database_url = 4; // optional
 }
 
 // ReleaseAgentMutation
 message ReleaseAgentMutation {
   bool enable_agent = 1;
-  string release_agent_host = 2; // optional
-  string release_agent_port = 3; // optional
-  string passphrase = 4; // optional
-  string secret_key = 5; // optional
-  string git_path = 6; // optional
-  string bucket_addr = 7; // optional
-  string bucket_access_key = 8; // optional
-  string bucket_secret_key = 9; // optional
-  string bucket_name = 10; // optional
+  optional string release_agent_host = 2; // optional
+  optional string release_agent_port = 3; // optional
+  optional string passphrase = 4; // optional
+  optional string secret_key = 5; // optional
+  optional string git_path = 6; // optional
+  optional string bucket_addr = 7; // optional
+  optional string bucket_access_key = 8; // optional
+  optional string bucket_secret_key = 9; // optional
+  optional string bucket_name = 10; // optional
 }

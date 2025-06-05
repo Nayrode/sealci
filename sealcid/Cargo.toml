@@ -9,10 +9,16 @@ edition = "2024"
 
 [dependencies]
 agent = { path = "../agent" }
+prost = "0.13.5"
 sealcid_traits = { path = "./sealcid_traits" }
 tokio = { version = "1.45.1", features = ["full"] }
+tonic = "0.13.1"
 tracing = "0.1.41"
 
+
+[build-dependencies]
+prost-build = "0.13.5"
+tonic-build = "0.12.0"
 
 [lib]
 name = "sealcid"

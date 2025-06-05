@@ -1,25 +1,18 @@
+use crate::common::proto::{self, AgentMutation};
+
 pub trait Apply<Config> {
     /// Applies the mutation to the given configuration.
-    fn apply(self, config: &mut Config) -> Config;
-}
-
-pub struct AgentMutation {
-    pub enable_agent: bool,
-    // Example: http://hugo.fr
-    pub agent_host: Option<String>,
-    // Example: 8080
-    pub agent_port: Option<u32>,
+    fn apply(&mut self, config: &mut Config);
 }
 
 impl Apply<agent::config::Config> for AgentMutation {
-    fn apply(self, config: &mut agent::config::Config) -> agent::config::Config {
-        if let Some(host) = self.agent_host {
-            config.ahost = host;
+    fn apply(&mut self, config: &mut agent::config::Config) {
+        if let Some(ahost) = self.agent_host.take() {
+            config.ahost = ahost;
         }
-        if let Some(port) = self.agent_port {
+        if let Some(port) = self.agent_port.take() {
             config.port = port;
         }
-        config.to_owned()
     }
 }
 
