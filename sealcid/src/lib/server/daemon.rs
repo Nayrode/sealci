@@ -7,8 +7,7 @@ use crate::{
     common::{
         error::Error,
         mutation::{
-            AgentMutation, Apply, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
-            SchedulerMutation,
+            Apply, ControllerMutation, MonitorMutation, ReleaseAgentMutation, SchedulerMutation,
         },
         service_enum::Services,
     },
@@ -54,17 +53,6 @@ impl Daemon {
             }
         }
 
-        Ok(())
-    }
-
-    pub async fn mutate_agent(&mut self, config: AgentMutation) -> Result<(), Error> {
-        let global_config = self.global_config.read().await;
-        let mut agent_config: AgentConfig = global_config.to_owned().into();
-        let config = config.apply(&mut agent_config);
-        self.agent
-            .restart_with_config(config)
-            .await
-            .map_err(Error::RestartAgentError)?;
         Ok(())
     }
 

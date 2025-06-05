@@ -1,45 +1,55 @@
-use tonic::async_trait;
+use agent::config::Config as AgentConfig;
+use tonic::{Request, Response, Status, async_trait};
 
 use crate::{
-    common::proto::proto::{
-        AgentMutation, ControllerMutation, MonitorMutation, MutationResponse, ReleaseAgentMutation,
-        SchedulerMutation, daemon_server::Daemon as DaemonGrpc,
+    common::{
+        error::Error,
+        mutation::Apply,
+        proto::{
+            AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
+            SchedulerMutation, daemon_server::Daemon as DaemonGrpc,
+        },
     },
-    server::daemon::{self, Daemon},
+    server::daemon::Daemon,
 };
 
 #[async_trait]
 impl DaemonGrpc for Daemon {
-    async fn mutate_agent(
-        &self,
-        request: tonic::Request<AgentMutation>,
-    ) -> Result<tonic::Response<MutationResponse>, tonic::Status> {
-        todo!()
+    async fn mutate_agent(&self, request: Request<AgentMutation>) -> Result<Response<()>, Status> {
+        let mut new_config = request.into_inner();
+        let global_config = self.global_config.read().await;
+        let mut agent_config: AgentConfig = global_config.to_owned().into();
+        new_config.apply(&mut agent_config);
+        self.agent
+            .restart_with_config(agent_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
+        Ok(Response::new(()))
     }
     async fn mutate_release_agent(
         &self,
-        request: tonic::Request<ReleaseAgentMutation>,
-    ) -> Result<tonic::Response<MutationResponse>, tonic::Status> {
+        request: Request<ReleaseAgentMutation>,
+    ) -> Result<Response<()>, tonic::Status> {
         todo!()
     }
     async fn mutate_scheduler(
         &self,
-        request: tonic::Request<SchedulerMutation>,
-    ) -> Result<tonic::Response<MutationResponse>, tonic::Status> {
+        request: Request<SchedulerMutation>,
+    ) -> Result<Response<()>, tonic::Status> {
         todo!()
     }
 
     async fn mutate_monitor(
         &self,
-        request: tonic::Request<MonitorMutation>,
-    ) -> std::result::Result<tonic::Response<MutationResponse>, tonic::Status> {
+        request: Request<MonitorMutation>,
+    ) -> std::result::Result<Response<()>, tonic::Status> {
         todo!()
     }
 
     async fn mutate_controller(
         &self,
-        request: tonic::Request<ControllerMutation>,
-    ) -> Result<tonic::Response<MutationResponse>, tonic::Status> {
+        request: Request<ControllerMutation>,
+    ) -> Result<Response<()>, tonic::Status> {
         todo!()
     }
 }
