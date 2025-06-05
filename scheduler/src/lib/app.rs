@@ -1,7 +1,5 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-// use logic::action_queue_logic::ActionsQueue;
 use tonic::transport::Server;
 use tracing::info;
 
@@ -13,9 +11,6 @@ use crate::{
         scheduler::{agent_server::AgentServer, controller_server::ControllerServer},
     },
 };
-
-//use proto::agent::agent_server::AgentServer;
-//use proto::controller::controller_server::ControllerServer;
 
 pub struct Config {
     pub addr: String,
@@ -34,7 +29,6 @@ impl App {
 
         // Initializes the Agent Pool and Action queue. They are lost when the Scheduler dies.
         let agent_pool = Arc::new(Mutex::new(AgentPool::new()));
-        //let action_queue = Arc::new(Mutex::new(ActionsQueue::new()));
 
         // Pass the shared Agent Pool to Agent and Controller services.
         let agent = AgentService::new(agent_pool.clone());
