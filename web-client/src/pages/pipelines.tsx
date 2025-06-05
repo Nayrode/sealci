@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react'
 import { PipelineCard } from '@/components/pipeline-card'
 import { usePipelineContext } from '@/contexts/pipeline-context'
 
-export default function Home() {
+export default function PipelinesPage() {
   const { pipelines, isLoading, reloadPipelines } = usePipelineContext()
 
   return (

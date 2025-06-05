@@ -41,7 +41,7 @@ export function PipelineCard({ pipeline }: PipelineCardProps) {
   const status = getOverallStatus()
 
   return (
-    <Link to={`/${pipeline.id}`}>
+    <Link to={`/pipelines/${pipeline.id}`}>
       <Card className="h-full transition-all hover:shadow-md">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start gap-4">

@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/status-badge'
 import { Link } from 'react-router-dom'
 import { usePipelineContext } from '@/contexts/pipeline-context'
 
-export default function PipelineDetail() {
+export default function PipelinePage() {
   const { currentPipeline, isLoading, reloadPipelines } = usePipelineContext()
 
   // Déterminer le statut global de la pipeline
@@ -30,7 +30,7 @@ export default function PipelineDetail() {
   return (
     <main className="flex-1 container py-6">
       <div className="flex items-center gap-2 mb-6">
-        <Link to="/">
+        <Link to="/pipelines">
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>

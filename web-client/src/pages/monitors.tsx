@@ -5,7 +5,7 @@ import { useMonitorContext } from "@/contexts/monitor-context"
 import { CirclePlus, RefreshCw } from "lucide-react"
 import { useState } from "react"
 
-export default function Monitors() {
+export default function MonitorsPage() {
     const { monitors, isLoading, addMonitor, realoadMonitors } = useMonitorContext()
 
     const [openMonitorModal, setOpenMonitorModal] = useState(false)
