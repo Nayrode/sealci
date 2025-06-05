@@ -32,10 +32,7 @@ impl Daemon {
         match toggle_service {
             Services::Agent(toggle) => {
                 if toggle {
-                    self.agent
-                        .enable()
-                        .await
-                        .map_err(Error::ToggleAgentError)?;
+                    self.agent.enable().await.map_err(Error::ToggleAgentError)?;
                 } else {
                     self.agent
                         .disable()
