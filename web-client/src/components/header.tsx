@@ -45,13 +45,13 @@ export function Header() {
           )}
         </div>
 
-        <div className='flex flex-row items-center gap-12'>
+        <div className="flex flex-row items-center gap-12">
           <Link to="/configurations" className={cn('flex gap-2 items-center transition-colors hover:text-foreground/80', isDetailPage ? 'text-foreground/60' : 'text-foreground font-medium')}>
             <SlidersHorizontal className="h-4 w-4" />
             <p>Configurations</p>
           </Link>
 
-          <a href="https://sealci.com/docs" className="underline">
+          <a href="https://github.com/dev-sys-do/sealci/blob/main/README.md" target="_blank" className="underline">
             Docs
           </a>
         </div>

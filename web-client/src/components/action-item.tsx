@@ -1,7 +1,7 @@
 import type { Action } from '@/types'
 import { StatusBadge } from './status-badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import {Code, TerminalIcon} from 'lucide-react'
+import { Code, TerminalIcon } from 'lucide-react'
 import Terminal from './terminal'
 
 interface ActionItemProps {

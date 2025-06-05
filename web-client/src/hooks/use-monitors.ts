@@ -8,11 +8,3 @@ export const useGetMonitors = () => {
   })
   return { data, error, isFetching, refetch }
 }
-
-// export const usePipeline = (verbose: boolean, id: string) => {
-//   const { data, error, isPending, refetch } = useQuery({
-//     queryKey: ['pipeline', id],
-//     queryFn: () => fetchPipeline({ verbose, id }),
-//   })
-//   return { data, error, isPending, refetch }
-// }

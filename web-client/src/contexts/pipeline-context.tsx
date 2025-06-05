@@ -1,22 +1,22 @@
 import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react'
 import type { CreatePipeline, Pipeline } from '@/types'
-import { useGetPipelines } from '@/hooks/use-pipelines';
-import { useParams } from 'react-router-dom';
+import { useGetPipelines } from '@/hooks/use-pipelines'
+import { useParams } from 'react-router-dom'
 
 type PipelineContextType = {
-  pipelines: Pipeline[] | undefined;
-  currentPipeline: Pipeline | undefined;
+  pipelines: Pipeline[] | undefined
+  currentPipeline: Pipeline | undefined
   isLoading: {
-    get: boolean;
-    add: boolean;
-    update: boolean;
-    remove: boolean;
-  };
-  addPipeline: (pipeline: CreatePipeline) => void;
-  getPipeline: (id: number) => Pipeline | undefined;
-  updatePipeline: (pipeline: CreatePipeline) => void;
-  removePipeline: (id: number) => void;
-  reloadPipelines: () => void;
+    get: boolean
+    add: boolean
+    update: boolean
+    remove: boolean
+  }
+  addPipeline: (pipeline: CreatePipeline) => void
+  getPipeline: (id: number) => Pipeline | undefined
+  updatePipeline: (pipeline: CreatePipeline) => void
+  removePipeline: (id: number) => void
+  reloadPipelines: () => void
 }
 
 const PipelineContext = createContext<PipelineContextType | undefined>(undefined)
@@ -28,9 +28,12 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [pipelines, setPipelines] = useState<Pipeline[] | undefined>(fetchedPipelines)
   const [currentPipeline, setCurrentPipeline] = useState<Pipeline | undefined>(undefined)
 
-  const getPipeline = useCallback((id: number): Pipeline | undefined => {
-    return pipelines?.find(p => p.id === id)
-  }, [pipelines])
+  const getPipeline = useCallback(
+    (id: number): Pipeline | undefined => {
+      return pipelines?.find((p) => p.id === id)
+    },
+    [pipelines]
+  )
 
   useEffect(() => {
     setPipelines(fetchedPipelines)
