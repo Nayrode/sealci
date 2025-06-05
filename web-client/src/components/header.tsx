@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
-import { usePipelineContext } from '@/contexts/PipelineContext'
+import { usePipelineContext } from '@/contexts/pipeline-context'
 import { SlidersHorizontal } from 'lucide-react'
 
 export function Header() {

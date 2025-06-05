@@ -1,7 +1,7 @@
 import MonitorCard from "@/components/monitor-card"
 import MonitorModal from "@/components/monitor-modal"
 import { Button } from "@/components/ui/button"
-import { useMonitorContext } from "@/contexts/MonitorContext"
+import { useMonitorContext } from "@/contexts/monitor-context"
 import { CirclePlus, RefreshCw } from "lucide-react"
 import { useState } from "react"
 

@@ -20,6 +20,11 @@ export interface Pipeline {
   actions: Action[];
 }
 
+export interface CreatePipeline {
+  repo_url: string;
+  body: File;
+}
+
 export interface Action {
   id: number;
   pipeline_id: number;
