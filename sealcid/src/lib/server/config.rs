@@ -54,3 +54,12 @@ impl Into<controller::config::Config> for GlobalConfig {
         }
     }
 }
+
+impl Into<monitor::config::Config> for GlobalConfig {
+    fn into(self) -> monitor::config::Config {
+        monitor::config::Config {
+            controller_host: self.controller_host,
+            port: self.monitor_port.parse().unwrap_or(9001),
+        }
+    }
+}

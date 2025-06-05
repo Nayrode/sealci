@@ -86,8 +86,13 @@ impl Daemon {
     }
 
     pub async fn mutate_monitor(&mut self, config: MonitorMutation) -> Result<(), Error> {
-        // Placeholder for monitor mutation logic
-        // Restart  monitor
+        let global_config = self.global_config.read().await;
+        let mut controller_config: ControllerConfig = global_config.to_owned().into();
+        let config = config.apply(&mut controller_config);
+        self.controller
+            .restart_with_config(config)
+            .await
+            .map_err(Error::RestartControllerError)?;
         Ok(())
     }
 

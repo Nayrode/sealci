@@ -112,7 +112,7 @@ impl App {
 
     pub async fn start(&self) -> Result<Server, AppError> {
         let app_context = Arc::clone(&self.app_context);
-        //let config = Arc::clone(&self.config);
+        let config = Arc::clone(&self.config);
         // Start HTTP server with CORS, logging middleware, and configured routes
         Ok(HttpServer::new(move || {
         // Configure CORS to allow any origin/method/header, cache preflight for 1 hour
@@ -136,7 +136,7 @@ impl App {
         actix_web::web::get().to(health::handlers::health_check),
         )
         })
-        .bind("sting a la merde").map_err(AppError::ActixWebError)?
+        .bind(config.http.clone()).map_err(AppError::ActixWebError)?
         .workers(1)
         .run())
     }

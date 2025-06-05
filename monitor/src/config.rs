@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use clap::Parser;
 
 #[derive(Parser, Clone)]
@@ -10,4 +11,10 @@ pub struct Config {
     /// The port of the agent to listen on
     #[clap(long, default_value = "9001", env = "PORT")]
     pub port: u16,
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Config {{ controller_host: {}, port: {} }}", self.controller_host, self.port)
+    }
 }

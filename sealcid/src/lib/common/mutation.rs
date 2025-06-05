@@ -28,6 +28,15 @@ pub struct MonitorMutation {
     pub monitor_port: Option<String>,
 }
 
+impl Apply<monitor::config::Config> for MonitorMutation {
+    fn apply(self, config: &mut monitor::config::Config) -> monitor::config::Config {
+        if let Some(port) = self.monitor_port {
+            config.port = port;
+        }
+        config.to_owned()
+    }
+}
+
 pub struct ControllerMutation {
     pub enable_agent: bool,
     // Example: http://hugo.fr
