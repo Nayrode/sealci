@@ -1,3 +1,8 @@
+pub trait Update<Config> {
+    /// Updates the configuration with the given mutation.
+    fn update(&mut self, config: Config);
+}
+
 #[derive(Debug, Clone)]
 pub struct GlobalConfig {
     // Example: 8080
@@ -33,6 +38,28 @@ pub struct GlobalConfig {
     pub agent_host: String,
     // Example: 8080
     pub agent_port: u32,
+}
+
+impl Update<agent::config::Config> for GlobalConfig {
+    fn update(&mut self, config: agent::config::Config) {
+        self.agent_host = config.ahost.clone();
+        self.agent_port = config.port;
+    }
+}
+
+impl Update<controller::config::Config> for GlobalConfig {
+    fn update(&mut self, config: controller::config::Config) {
+        self.controller_host = config.http.clone();
+        self.controller_port = config.http.split(':').last().unwrap_or("8080").to_string();
+        self.database_url = config.database_url.clone();
+    }
+}
+
+impl Update<monitor::config::Config> for GlobalConfig {
+    fn update(&mut self, config: monitor::config::Config) {
+        self.monitor_port = config.port.to_string();
+        self.controller_host = config.controller_host.clone();
+    }
 }
 
 impl Into<agent::config::Config> for GlobalConfig {

@@ -1,8 +1,8 @@
-use crate::common::proto::{self, AgentMutation};
+pub(crate) use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation};
 
 pub trait Apply<Config> {
     /// Applies the mutation to the given configuration.
-    fn apply(&mut self, config: &mut Config);
+    fn apply(&mut self, config: Config);
 }
 
 impl Apply<agent::config::Config> for AgentMutation {
@@ -24,31 +24,16 @@ pub struct SchedulerMutation {
     pub scheduler_port: Option<String>,
 }
 
-pub struct MonitorMutation {
-    pub monitor_port: Option<String>,
-}
-
 impl Apply<monitor::config::Config> for MonitorMutation {
-    fn apply(self, config: &mut monitor::config::Config) -> monitor::config::Config {
+    fn apply(self, config: &mut monitor::config::Config) {
         if let Some(port) = self.monitor_port {
-            config.port = port;
+            config.port = port.parse().unwrap();
         }
-        config.to_owned()
     }
 }
 
-pub struct ControllerMutation {
-    pub enable_agent: bool,
-    // Example: http://hugo.fr
-    pub controller_host: Option<String>,
-    // Example: 8080
-    pub controller_port: Option<String>,
-    // Postgres url for the controller
-    pub database_url: Option<String>,
-}
-
 impl Apply<controller::config::Config> for ControllerMutation {
-    fn apply(self, config: &mut controller::config::Config) -> controller::config::Config {
+    fn apply(self, config: &mut controller::config::Config) {
         if let Some(host) = self.controller_host {
             config.http = host;
         }
@@ -58,7 +43,6 @@ impl Apply<controller::config::Config> for ControllerMutation {
         if let Some(db_url) = self.database_url {
             config.database_url = db_url;
         }
-        config.to_owned()
     }
 }
 

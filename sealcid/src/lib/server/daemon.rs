@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use agent::{app::App as AgentApp, config::Config as AgentConfig};
 use controller::{application::App as ControllerApp, config::Config as ControllerConfig};
+use monitor::{app::App as MonitorApp, config::Config as MonitorConfig};
 use tokio::sync::RwLock;
 
 use crate::{
     common::{
         error::Error,
         mutation::{
-            Apply, ControllerMutation, MonitorMutation, ReleaseAgentMutation, SchedulerMutation,
+            Apply, ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
         },
         service_enum::Services,
     },
@@ -19,15 +20,17 @@ pub struct Daemon {
     pub global_config: Arc<RwLock<GlobalConfig>>,
     pub agent: SealedService<AgentApp, AgentConfig>,
     pub controller: SealedService<ControllerApp, ControllerConfig>,
+    pub monitor: SealedService<MonitorApp, MonitorConfig>,
 }
 
 impl Daemon {
-    pub fn new(global_config: GlobalConfig, agent: AgentApp, controller: ControllerApp) -> Self {
+    pub fn new(global_config: GlobalConfig, agent: AgentApp, controller: ControllerApp, monitor: MonitorApp) -> Self {
         Self {
             global_config: Arc::new(RwLock::new(global_config.clone())),
             agent: SealedService::new(agent, global_config.clone()),
             controller: SealedService::new(controller,
                 global_config.clone()),
+            monitor: SealedService::new(monitor, global_config),
         }
     }
 
@@ -82,28 +85,6 @@ impl Daemon {
     pub async fn mutate_scheduler(&mut self, config: SchedulerMutation) -> Result<(), Error> {
         // Placeholder for scheduler mutation logic
         // Restart agent, scheduler
-        Ok(())
-    }
-
-    pub async fn mutate_monitor(&mut self, config: MonitorMutation) -> Result<(), Error> {
-        let global_config = self.global_config.read().await;
-        let mut controller_config: ControllerConfig = global_config.to_owned().into();
-        let config = config.apply(&mut controller_config);
-        self.controller
-            .restart_with_config(config)
-            .await
-            .map_err(Error::RestartControllerError)?;
-        Ok(())
-    }
-
-    pub async fn mutate_controller(&mut self, config: ControllerMutation) -> Result<(), Error> {
-        let global_config = self.global_config.read().await;
-        let mut controller_config: ControllerConfig = global_config.to_owned().into();
-        let config = config.apply(&mut controller_config);
-        self.controller
-            .restart_with_config(config)
-            .await
-            .map_err(Error::RestartControllerError)?;
         Ok(())
     }
 }
