@@ -29,12 +29,12 @@ impl Agent {
     }
 
     /// Score getter
-    pub(crate) fn get_score(&self) -> u64 {
+    pub(crate) fn _get_score(&self) -> u64 {
         self.score
     }
 
     /// ID setter
-    pub(crate) fn set_id(&mut self, id: u32) {
+    pub(crate) fn _set_id(&mut self, id: u32) {
         self.id = id;
     }
 
@@ -91,12 +91,12 @@ impl Hostname {
     }
 
     /// Host setter
-    pub(crate) fn set_host(&mut self, host: String) {
+    pub(crate) fn _set_host(&mut self, host: String) {
         self.host = host;
     }
 
     /// Port setter
-    pub(crate) fn set_port(&mut self, port: u32) {
+    pub(crate) fn _set_port(&mut self, port: u32) {
         self.port = port;
     }
 }
@@ -122,7 +122,7 @@ impl AgentPool {
     }
 
     /// Remove and return the Agent with the lowest score (that is, the first Agent), or return None if the Pool is empty.
-    pub(crate) fn pop(&mut self) -> Option<Agent> {
+    pub(crate) fn _pop(&mut self) -> Option<Agent> {
         if self.agents.is_empty() {
             None
         } else {
@@ -140,12 +140,12 @@ impl AgentPool {
     }
 
     /// Return the number of Agents in the Pool
-    pub(crate) fn len(&self) -> usize {
+    pub(crate) fn _len(&self) -> usize {
         self.agents.len()
     }
 
     /// Check if the Agent Pool is empty
-    pub(crate) fn is_empty(&self) -> bool {
+    pub(crate) fn _is_empty(&self) -> bool {
         self.agents.is_empty()
     }
 

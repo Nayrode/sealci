@@ -150,8 +150,8 @@ impl ControllerService {
             .ok_or_else(|| tonic::Status::invalid_argument("Context field is missing"))?;
 
         // Convert `context.r#type` (which is an `i32`) to a `RunnerType`
-        let runner_type = proto::RunnerType::from_i32(context.r#type)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid RunnerType"))?;
+        let runner_type = proto::RunnerType::try_from(context.r#type)
+            .map_err(|_| tonic::Status::invalid_argument("Invalid RunnerType"))?;
 
         let container_image = context
             .container_image

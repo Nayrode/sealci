@@ -28,7 +28,7 @@ impl Action {
     }
 
     /// Context getter
-    pub(crate) fn get_context(&self) -> &proto::ExecutionContext {
+    pub(crate) fn _get_context(&self) -> &proto::ExecutionContext {
         &self.context
     }
 
@@ -56,32 +56,32 @@ impl Action {
     }
 
     /// Action ID setter
-    pub(crate) fn set_action_id(&mut self, action_id: u32) {
+    pub(crate) fn _set_action_id(&mut self, action_id: u32) {
         self.action_id = action_id;
     }
 
     /// Context setter
-    pub(crate) fn set_context(&mut self, context: proto::ExecutionContext) {
+    pub(crate) fn _set_context(&mut self, context: proto::ExecutionContext) {
         self.context = context;
     }
 
     /// Runner type setter
-    pub(crate) fn set_runner_type(&mut self, runner_type: i32) {
+    pub(crate) fn _set_runner_type(&mut self, runner_type: i32) {
         self.context.r#type = runner_type;
     }
 
     /// Container image setter
-    pub(crate) fn set_container_image(&mut self, container_image: String) {
+    pub(crate) fn _set_container_image(&mut self, container_image: String) {
         self.context.container_image = Some(container_image);
     }
 
     /// Commands setter
-    pub(crate) fn set_commands(&mut self, commands: Vec<String>) {
+    pub(crate) fn _set_commands(&mut self, commands: Vec<String>) {
         self.commands = commands;
     }
 
     /// Repo URL setter
-    pub(crate) fn set_repo_url(&mut self, repo_url: String) {
+    pub(crate) fn _set_repo_url(&mut self, repo_url: String) {
         self.repo_url = repo_url;
     }
 
@@ -100,12 +100,12 @@ impl ActionsQueue {
     }
 
     /// Insert an Action into the Action Queue and sort the Queue by score.
-    pub(crate) fn push(&mut self, item: Action) {
+    pub(crate) fn _push(&mut self, item: Action) {
         self.actions.push(item);
     }
 
     /// Remove and return the Action with the lowest score (that is, the first Action), or return None if the Queue is empty.
-    pub(crate) fn pop(&mut self) -> Option<Action> {
+    pub(crate) fn _pop(&mut self) -> Option<Action> {
         if self.actions.is_empty() {
             None
         } else {
