@@ -69,7 +69,7 @@ impl sealcid_traits::App<Config> for App {
     }
 
     fn name(&self) -> String {
-        "SealCI".to_string()
+        "Agent".to_string()
     }
 }
 

@@ -88,7 +88,7 @@ impl sealcid_traits::App<Config> for App {
     }
 
     fn name(&self) -> String {
-        "SealCI".to_string()
+        "Controller".to_string()
     }
 }
 

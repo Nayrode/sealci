@@ -38,7 +38,7 @@ impl Apply<controller::config::Config> for ControllerMutation {
             config.http = host;
         }
         if let Some(port) = self.controller_port {
-            config.http += &*(":".to_owned() + port.as_str());
+            config.http = format!("{}:{}", config.http, port);
         }
         if let Some(db_url) = self.database_url {
             config.database_url = db_url;
