@@ -20,6 +20,12 @@ use crate::{
 impl DaemonGrpc for Daemon {
     async fn mutate_agent(&self, request: Request<AgentMutation>) -> Result<Response<()>, Status> {
         let new_config = request.into_inner();
+        if Some(false) == new_config.toggle_agent {
+            self.agent.disable().await.map_err(|e| {
+                Status::failed_precondition(Error::RestartAgentError(e))
+            })?;
+            return Ok(Response::new(()));
+        }
         let mut writer = self.global_config.write().await;
         writer.update(new_config);
         let global_config = self.global_config.read().await;
@@ -42,6 +48,12 @@ impl DaemonGrpc for Daemon {
         request: Request<SchedulerMutation>,
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
+        if Some(false) == new_config.toggle_scheduler {
+            self.scheduler.disable().await.map_err(|e| {
+                Status::failed_precondition(Error::RestartSchedulerError(e))
+            })?;
+            return Ok(Response::new(()));
+        }
         let mut writer = self.global_config.write().await;
         writer.update(new_config);
         let global_config = self.global_config.read().await;
@@ -70,6 +82,12 @@ impl DaemonGrpc for Daemon {
         request: Request<MonitorMutation>,
     ) -> std::result::Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
+        if Some(false) == new_config.toggle_monitor {
+            self.monitor.disable().await.map_err(|e| {
+                Status::failed_precondition(Error::RestartMonitorError(e))
+            })?;
+            return Ok(Response::new(()));
+        }
         let mut writer = self.global_config.write().await;
         writer.update(new_config);
         let global_config = self.global_config.read().await;
@@ -86,6 +104,12 @@ impl DaemonGrpc for Daemon {
         request: Request<ControllerMutation>,
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
+        if Some(false) == new_config.toggle_controller {
+            self.controller.disable().await.map_err(|e| {
+                Status::failed_precondition(Error::RestartControllerError(e))
+            })?;
+            return Ok(Response::new(()));
+        }
         let mut writer = self.global_config.write().await;
         writer.update(new_config);
         let global_config = self.global_config.read().await;

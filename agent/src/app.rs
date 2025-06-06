@@ -2,12 +2,13 @@ use std::{
     net::{AddrParseError, SocketAddr},
     sync::Arc,
 };
-
+use std::time::Duration;
 use bollard::Docker;
 use sealcid_traits::status::Status;
 use tokio::{sync::RwLock, task};
+use tokio::time::sleep;
 use tonic::transport::Server;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     brokers::state_broker::StateBroker,
@@ -20,6 +21,7 @@ use crate::{
         scheduler_service::SchedulerService,
     },
 };
+use crate::models::error::Error::ConnectionError;
 
 #[derive(Clone)]
 pub struct App {
@@ -84,13 +86,36 @@ impl App {
         let action_service = ActionService::new(docker, state_broker.clone());
         let actions = ActionsLauncher { action_service };
         let action_service_grpc = ActionServiceServer::new(actions);
-        let mut scheduler_service = SchedulerService::init(
-            config.shost.clone(),
-            config.ahost.clone(),
-            config.port.clone(),
-            health_service,
-        )
-        .await?;
+        // Exponential backoff configuration
+        let mut retry_delay = Duration::from_secs(2);
+        const MAX_RETRY_DELAY: u64 = 64;
+        let mut retry_count = 0;
+        let mut scheduler_service = loop {
+            match SchedulerService::init(
+                config.shost.clone(),
+                config.ahost.clone(),
+                config.port.clone(),
+                health_service.clone(),
+            )
+                .await {
+                Ok(client) => break client,
+                Err(e) => {
+                    if retry_count >= 10 {
+                        return Err(e);
+                    }
+                    error!(
+                        "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
+                        e, retry_delay
+                    );
+                    sleep(retry_delay).await;
+                    retry_delay *= 2;
+                    if retry_delay > Duration::from_secs(MAX_RETRY_DELAY) {
+                        retry_delay = Duration::from_secs(MAX_RETRY_DELAY);
+                    }
+                    retry_count += 1;
+                }
+            }
+        };
         scheduler_service.register().await?;
         Ok(Self {
             action_service_grpc,

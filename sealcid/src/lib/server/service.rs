@@ -69,7 +69,7 @@ where
 
     pub async fn enable(&self) -> Result<(), App::Error> {
         let app = &self.app.read().await;
-        if let Err(_) = app.stop().await {
+        if let Err(_) = app.run().await {
             tracing::error!("Failed to start the app {}", app.name());
         }
         *self.enabled.write().await = true;
