@@ -1,3 +1,4 @@
+use crate::application::AppError;
 use crate::domain::action::entities::action::{
     ActionRequest as DomainActionRequest, ActionResponse as DomainActionResponse,
     ActionResult as DomainActionResult, ActionStatus as DomainActionStatus,
@@ -44,9 +45,9 @@ impl DomainActionStatus {
         match value {
             0 => DomainActionStatus::Pending,
             1 => DomainActionStatus::Scheduled,
-            2 => DomainActionStatus::Running,  
+            2 => DomainActionStatus::Running,
             3 => DomainActionStatus::Completed,
-            4 => DomainActionStatus::Error, 
+            4 => DomainActionStatus::Error,
             _ => DomainActionStatus::Error, // Default case for unknown status
         }
     }
@@ -71,8 +72,10 @@ pub struct GrpcSchedulerClient {
 }
 
 impl GrpcSchedulerClient {
-    pub async fn new(grpc_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let client = ControllerClient::connect(grpc_url.to_string()).await?;
+    pub async fn new(grpc_url: &str) -> Result<Self, AppError> {
+        let client = ControllerClient::connect(grpc_url.to_string())
+            .await
+            .map_err(AppError::GrpcConnectionError)?;
         tracing::info!("Connected to scheduler at {}", grpc_url);
         Ok(Self {
             client: Arc::new(Mutex::new(client)),

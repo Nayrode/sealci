@@ -1,16 +1,10 @@
-use tokio::time::{sleep, Duration};
-use tracing::error;
 use futures::lock::Mutex;
 use std::sync::Arc;
-use thiserror::Error;
+use tokio::time::{sleep, Duration};
+use tracing::error;
 
-#[derive(Error, Debug)]
-pub enum AppError {
-    #[error("Failed to connect to the scheduler after multiple retries")]
-    SchedulerConnectionError,
-}
-
-use crate::
+use crate::{
+    application::AppError,
     infrastructure::{
         db::postgres::Postgres,
         grpc::grpc_scheduler_client::GrpcSchedulerClient,
@@ -19,27 +13,56 @@ use crate::
             command_repository::PostgresCommandRepository, log_repository::PostgresLogRepository,
             pipeline_repository::PostgresPipelineRepository,
         },
-    }
-;
+    },
+};
 
-use super::
-    services::{
-        action_service::ActionServiceImpl, command_service::CommandServiceImpl,
-        pipeline_service::PipelineServiceImpl, scheduler_service_impl::SchedulerServiceImpl,
-    }
-;
+use super::services::{
+    action_service::ActionServiceImpl, command_service::CommandServiceImpl,
+    pipeline_service::PipelineServiceImpl, scheduler_service_impl::SchedulerServiceImpl,
+};
 
 #[derive(Clone)]
 pub struct AppContext {
-    pub pipeline_service: Arc<PipelineServiceImpl<PostgresPipelineRepository, PostgresLogRepository, ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, SchedulerServiceImpl<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, GrpcSchedulerClient, PostgresPipelineRepository>>>,
-    pub action_service: Arc<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>>,
-    pub scheduler_service: Arc<Mutex<SchedulerServiceImpl<ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>, GrpcSchedulerClient, PostgresPipelineRepository>>>,
+    pub pipeline_service: Arc<
+        PipelineServiceImpl<
+            PostgresPipelineRepository,
+            PostgresLogRepository,
+            ActionServiceImpl<
+                PostgresActionRepository,
+                CommandServiceImpl<PostgresCommandRepository>,
+            >,
+            SchedulerServiceImpl<
+                ActionServiceImpl<
+                    PostgresActionRepository,
+                    CommandServiceImpl<PostgresCommandRepository>,
+                >,
+                GrpcSchedulerClient,
+                PostgresPipelineRepository,
+            >,
+        >,
+    >,
+    pub action_service: Arc<
+        ActionServiceImpl<PostgresActionRepository, CommandServiceImpl<PostgresCommandRepository>>,
+    >,
+    pub scheduler_service: Arc<
+        Mutex<
+            SchedulerServiceImpl<
+                ActionServiceImpl<
+                    PostgresActionRepository,
+                    CommandServiceImpl<PostgresCommandRepository>,
+                >,
+                GrpcSchedulerClient,
+                PostgresPipelineRepository,
+            >,
+        >,
+    >,
 }
 
 impl AppContext {
     pub async fn initialize(database_url: &str, grpc_url: &str) -> Result<Self, AppError> {
         // Initialize Postgres connection pool using provided database URL
-        let postgres = Arc::new(Postgres::new(database_url).await);
+        let postgres = Postgres::new(database_url).await?;
+        let postgres = Arc::new(postgres);
 
         // Exponential backoff configuration
         let mut retry_delay = Duration::from_secs(2);
@@ -54,7 +77,10 @@ impl AppContext {
                     if retry_count >= 10 {
                         return Err(AppError::SchedulerConnectionError);
                     }
-                    error!("Failed to connect to scheduler: {}, retrying in {:?} seconds...", e, retry_delay);
+                    error!(
+                        "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
+                        e, retry_delay
+                    );
                     sleep(retry_delay).await;
                     retry_delay *= 2;
                     if retry_delay > Duration::from_secs(MAX_RETRY_DELAY) {

@@ -36,14 +36,8 @@ sealcid_traits = { path = "../sealcid/sealcid_traits" }
 tonic-build = "0.12.0"
 
 
-[[bin]]
-name = "scheduler"
-path = "src/lib/server.rs"
-test = false
 
-[[bin]]
-name = "controller"
-path = "src/bin/main.rs"
+
 
 [lib]
 path = "src/lib/lib.rs"

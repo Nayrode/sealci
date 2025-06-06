@@ -41,20 +41,22 @@ impl DaemonGrpc for Daemon {
         &self,
         request: Request<SchedulerMutation>,
     ) -> Result<Response<()>, tonic::Status> {
-        let mut new_config = request.into_inner();
+        let new_config = request.into_inner();
         let mut writer = self.global_config.write().await;
         writer.update(new_config);
         let global_config = self.global_config.read().await;
-        let mut scheduler_config: SchedulerConfig = global_config.to_owned().into();
+        let scheduler_config: SchedulerConfig = global_config.to_owned().into();
         self.scheduler
             .restart_with_config(scheduler_config)
             .await
-            .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError("test".to_string())))?;
+            .map_err(|_| Status::failed_precondition(Error::RestartSchedulerError))?;
         let controller_config: ControllerConfig = global_config.to_owned().into();
         self.controller
             .restart_with_config(controller_config)
             .await
-            .map_err(|_| Status::failed_precondition(Error::RestartControllerError("test".to_string())))?;
+            .map_err(|_| {
+                Status::failed_precondition(Error::RestartControllerError("test".to_string()))
+            })?;
         let agent_config: AgentConfig = global_config.to_owned().into();
         self.agent
             .restart_with_config(agent_config)
@@ -80,23 +82,25 @@ impl DaemonGrpc for Daemon {
     }
 
     async fn mutate_controller(
-            &self,
-            request: Request<ControllerMutation>,
-        ) -> Result<Response<()>, tonic::Status> {
-            let new_config = request.into_inner();
-            let mut writer = self.global_config.write().await;
-            writer.update(new_config);
-            let global_config = self.global_config.read().await;
-            let controller_config: ControllerConfig = global_config.to_owned().into();
-            self.controller
-                .restart_with_config(controller_config)
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartControllerError(format!("{:?}", e))))?;
-            let monitor_config: MonitorConfig = global_config.to_owned().into();
-            self.monitor
-                .restart_with_config(monitor_config)
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(format!("{:?}", e))))?;
-            Ok(Response::new(()))
-        }
+        &self,
+        request: Request<ControllerMutation>,
+    ) -> Result<Response<()>, tonic::Status> {
+        let new_config = request.into_inner();
+        let mut writer = self.global_config.write().await;
+        writer.update(new_config);
+        let global_config = self.global_config.read().await;
+        let controller_config: ControllerConfig = global_config.to_owned().into();
+        self.controller
+            .restart_with_config(controller_config)
+            .await
+            .map_err(|e| {
+                Status::failed_precondition(Error::RestartControllerError(format!("{:?}", e)))
+            })?;
+        let monitor_config: MonitorConfig = global_config.to_owned().into();
+        self.monitor
+            .restart_with_config(monitor_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
+        Ok(Response::new(()))
+    }
 }
