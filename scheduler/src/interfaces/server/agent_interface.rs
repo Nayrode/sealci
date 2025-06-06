@@ -1,9 +1,9 @@
 use crate::errors::Error;
 
 use crate::logic::agent_pool_logic::Agent as PoolAgent;
-use crate::logic::agent_pool_logic::{compute_score, AgentPool};
 use crate::logic::agent_pool_logic::Hostname;
-use tracing::{error, info};
+use crate::logic::agent_pool_logic::{AgentPool, compute_score};
+use tracing::{debug, error};
 
 use crate::proto::scheduler as proto;
 use proto::agent_server::Agent;
@@ -19,9 +19,7 @@ pub struct AgentService {
 
 impl AgentService {
     pub fn new(agent_pool: Arc<Mutex<AgentPool>>) -> Self {
-        Self {
-            agent_pool,
-        }
+        Self { agent_pool }
     }
 }
 
@@ -36,14 +34,16 @@ impl Agent for AgentService {
 
         let input = inner_req.health.ok_or_else(|| {
             error!("[Scheduler]: Health status is missing in the request");
-            return Error::GrpcRequestError(tonic::Status::invalid_argument("Health status is missing"));
+            return Error::GrpcRequestError(tonic::Status::invalid_argument(
+                "Health status is missing",
+            ));
         })?;
 
         let cpu_avail = input.cpu_avail.clone();
         let memory_avail = input.memory_avail.clone();
 
-        info!("[Scheduler]: Received request from Agent: {:?}", input);
-        info!(
+        debug!("[Scheduler]: Received request from Agent: {:?}", input);
+        debug!(
             "\n  - Agent CPU usage: {}\n  - Agent memory usage: {}",
             cpu_avail, memory_avail
         );
@@ -57,8 +57,8 @@ impl Agent for AgentService {
         let host = hostname.host.clone();
         let port = hostname.port.clone();
 
-        info!("[Scheduler]: Received request from Agent: {:?}", hostname);
-        info!(
+        debug!("[Scheduler]: Received request from Agent: {:?}", hostname);
+        debug!(
             "\n  - Agent host usage: {}\n  - Agent port usage: {}",
             host, port
         );
@@ -101,12 +101,15 @@ impl Agent for AgentService {
             let health = match status.health {
                 Some(health) => health,
                 None => {
-                    error!("[Scheduler]: Health field is missing for Agent {}", status.agent_id);
+                    error!(
+                        "[Scheduler]: Health field is missing for Agent {}",
+                        status.agent_id
+                    );
                     continue; // Skip to the next health status if health data is missing
                 }
             };
 
-            info!(
+            debug!(
                 "[Scheduler]: Received health status from agent {}: CPU: {}, Memory: {}",
                 status.agent_id, health.cpu_avail, health.memory_avail
             );
@@ -118,13 +121,16 @@ impl Agent for AgentService {
             let agent = match pool.find_agent_mut(status.agent_id) {
                 Some(agent) => agent,
                 None => {
-                    error!("[Scheduler]: Agent ID {} not found in the Pool", status.agent_id);
+                    error!(
+                        "[Scheduler]: Agent ID {} not found in the Pool",
+                        status.agent_id
+                    );
                     continue; // Skip to the next health status if the agent is not found
                 }
             };
 
             // Compute the Agent's new score and set it.
-            let updated_score = compute_score(health.cpu_avail, health.memory_avail / 100_000_000);  // Divide by 10^8 to have the same scale/order of magnitude as the CPU.
+            let updated_score = compute_score(health.cpu_avail, health.memory_avail / 100_000_000); // Divide by 10^8 to have the same scale/order of magnitude as the CPU.
             agent.set_score(updated_score);
 
             // Check if the Agent's position in the Pool is now out of order

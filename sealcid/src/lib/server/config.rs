@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation};
 
 pub trait Update<Mutation> {
@@ -22,13 +24,13 @@ pub struct GlobalConfig {
     pub release_agent_port: String, // default: "8080"
 
     // Other configuration for the release agent
-    pub passphrase: String, // default: "changeme"
-    pub secret_key: String, // default: "secret"
-    pub git_path: String, // default: "/usr/bin/git"
-    pub bucket_addr: String, // default: "localhost:9000"
+    pub passphrase: String,        // default: "changeme"
+    pub secret_key: String,        // default: "secret"
+    pub git_path: String,          // default: "/usr/bin/git"
+    pub bucket_addr: String,       // default: "localhost:9000"
     pub bucket_access_key: String, // default: "minioadmin"
     pub bucket_secret_key: String, // default: "minioadmin"
-    pub bucket_name: String, // default: "sealci"
+    pub bucket_name: String,       // default: "sealci"
 
     // Example: http://hugo.fr
     pub scheduler_host: String, // default: "http://localhost"
