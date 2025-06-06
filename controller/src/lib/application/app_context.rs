@@ -1,7 +1,7 @@
 use futures::lock::Mutex;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::error;
+use tracing::warn;
 
 use crate::{
     application::AppError,
@@ -77,7 +77,7 @@ impl AppContext {
                     if retry_count >= 10 {
                         return Err(AppError::SchedulerConnectionError);
                     }
-                    error!(
+                    warn!(
                         "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
                         e, retry_delay
                     );

@@ -1,14 +1,12 @@
+use bollard::Docker;
+use sealcid_traits::status::Status;
 use std::{
     net::{AddrParseError, SocketAddr},
     sync::Arc,
 };
-use std::time::Duration;
-use bollard::Docker;
-use sealcid_traits::status::Status;
 use tokio::{sync::RwLock, task};
-use tokio::time::sleep;
 use tonic::transport::Server;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     brokers::state_broker::StateBroker,
@@ -21,12 +19,10 @@ use crate::{
         scheduler_service::SchedulerService,
     },
 };
-use crate::models::error::Error::ConnectionError;
 
 #[derive(Clone)]
 pub struct App {
     config: Config,
-    health_service: HealthService,
     action_service_grpc: ActionServiceServer<ActionsLauncher>,
     app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), Error>>>>,
 }
@@ -77,8 +73,6 @@ impl sealcid_traits::App<Config> for App {
 
 impl App {
     pub async fn init(config: Config) -> Result<Self, Error> {
-        let health_service = HealthService::new();
-
         let docker = Arc::new(Docker::connect_with_socket_defaults().unwrap());
         docker.ping().await.map_err(Error::DockerConnectionError)?;
 
@@ -86,45 +80,24 @@ impl App {
         let action_service = ActionService::new(docker, state_broker.clone());
         let actions = ActionsLauncher { action_service };
         let action_service_grpc = ActionServiceServer::new(actions);
-        
+
         Ok(Self {
             action_service_grpc,
             config,
-            health_service,
             app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
         })
     }
 
-    pub async fn start(&mut self) -> Result<(), Error> {// Exponential backoff configuration
-        let mut retry_delay = Duration::from_secs(2);
-        const MAX_RETRY_DELAY: u64 = 64;
-        let mut retry_count = 0;
-        let mut scheduler_service = loop {
-            match SchedulerService::init(
-                self.config.shost.clone(),
-                self.config.ahost.clone(),
-                self.config.port.clone(),
-                self.health_service.clone(),
-            )
-                .await {
-                Ok(client) => break client,
-                Err(e) => {
-                    if retry_count >= 10 {
-                        return Err(e);
-                    }
-                    error!(
-                        "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
-                        e, retry_delay
-                    );
-                    sleep(retry_delay).await;
-                    retry_delay *= 2;
-                    if retry_delay > Duration::from_secs(MAX_RETRY_DELAY) {
-                        retry_delay = Duration::from_secs(MAX_RETRY_DELAY);
-                    }
-                    retry_count += 1;
-                }
-            }
-        };
+    pub async fn start(&mut self) -> Result<(), Error> {
+        let health_service = HealthService::new();
+
+        let mut scheduler_service = SchedulerService::init(
+            self.config.shost.clone(),
+            self.config.ahost.clone(),
+            self.config.port.clone(),
+            health_service,
+        )
+        .await?;
         scheduler_service.register().await?;
         let addr: SocketAddr = format!("0.0.0.0:{}", self.config.port)
             .parse()

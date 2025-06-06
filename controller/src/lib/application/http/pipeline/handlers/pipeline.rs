@@ -104,7 +104,9 @@ pub async fn create_pipeline(
         Err(ParsingError::YamlNotCompliant) => {
             return HttpResponse::BadRequest().body("Invalid YAML format");
         }
-        Err(e) => return HttpResponse::BadRequest().body(format!("Parse error: {:?}", e)),
+        Err(e) => {
+            return HttpResponse::BadRequest().body(format!("Parse error: {:?}", e));
+        }
     };
 
     let actions_map = parser_manifest
@@ -121,7 +123,7 @@ pub async fn create_pipeline(
         })
         .collect();
     let domain_manifest = DomainManifestPipeline {
-        name: parser_manifest.name,
+        name: parser_manifest.name.clone(),
         actions: ActionsMap {
             actions: actions_map,
         },

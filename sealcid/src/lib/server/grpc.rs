@@ -3,6 +3,7 @@ use controller::config::Config as ControllerConfig;
 use monitor::config::Config as MonitorConfig;
 use sealci_scheduler::config::Config as SchedulerConfig;
 use tonic::{Request, Response, Status, async_trait};
+use tracing::error;
 
 use crate::server::config::Update;
 use crate::{
@@ -21,13 +22,15 @@ impl DaemonGrpc for Daemon {
     async fn mutate_agent(&self, request: Request<AgentMutation>) -> Result<Response<()>, Status> {
         let new_config = request.into_inner();
         if Some(false) == new_config.toggle_agent {
-            self.agent.disable().await.map_err(|e| {
-                Status::failed_precondition(Error::RestartAgentError(e))
-            })?;
+            self.agent
+                .disable()
+                .await
+                .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
             return Ok(Response::new(()));
         }
         self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
+
         let agent_config: AgentConfig = global_config.to_owned().into();
         self.agent
             .restart_with_config(agent_config.clone())
@@ -48,30 +51,39 @@ impl DaemonGrpc for Daemon {
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
         if Some(false) == new_config.toggle_scheduler {
-            self.scheduler.disable().await.map_err(|e| {
-                Status::failed_precondition(Error::RestartSchedulerError(e))
-            })?;
+            self.scheduler
+                .disable()
+                .await
+                .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
             return Ok(Response::new(()));
         }
         self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
+        println!("Acquired read lock on global_config");
         let scheduler_config: SchedulerConfig = global_config.to_owned().into();
         self.scheduler
             .restart_with_config(scheduler_config)
             .await
-            .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+            .map_err(|e| {
+                error!("Failed to restart scheduler: {:?}", e);
+                Status::failed_precondition(Error::RestartSchedulerError(e))
+            })?;
         let controller_config: ControllerConfig = global_config.to_owned().into();
         self.controller
             .restart_with_config(controller_config)
             .await
             .map_err(|e| {
+                error!("Failed to restart controller: {:?}", e);
                 Status::failed_precondition(Error::RestartControllerError(e))
             })?;
         let agent_config: AgentConfig = global_config.to_owned().into();
         self.agent
             .restart_with_config(agent_config)
             .await
-            .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
+            .map_err(|e| {
+                error!("Failed to restart agent: {:?}", e);
+                Status::failed_precondition(Error::RestartAgentError(e))
+            })?;
         Ok(Response::new(()))
     }
 
@@ -81,13 +93,15 @@ impl DaemonGrpc for Daemon {
     ) -> std::result::Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
         if Some(false) == new_config.toggle_monitor {
-            self.monitor.disable().await.map_err(|e| {
-                Status::failed_precondition(Error::RestartMonitorError(e))
-            })?;
+            self.monitor
+                .disable()
+                .await
+                .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
             return Ok(Response::new(()));
         }
         self.global_config.write().await.update(new_config);
         let monitor_config: MonitorConfig = self.global_config.read().await.to_owned().into();
+
         self.monitor
             .restart_with_config(monitor_config.clone())
             .await
@@ -101,20 +115,19 @@ impl DaemonGrpc for Daemon {
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
         if Some(false) == new_config.toggle_controller {
-            self.controller.disable().await.map_err(|e| {
-                Status::failed_precondition(Error::RestartControllerError(e))
-            })?;
+            self.controller
+                .disable()
+                .await
+                .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
             return Ok(Response::new(()));
         }
-        self.global_config.write().await.update(new_config);
-        let global_config = self.global_config.read().await;
+        let mut global_config = self.global_config.write().await;
+        global_config.update(new_config);
         let controller_config: ControllerConfig = global_config.to_owned().into();
         self.controller
             .restart_with_config(controller_config)
             .await
-            .map_err(|e| {
-                Status::failed_precondition(Error::RestartControllerError(e))
-            })?;
+            .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
         let monitor_config: MonitorConfig = global_config.to_owned().into();
         self.monitor
             .restart_with_config(monitor_config)

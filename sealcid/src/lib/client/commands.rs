@@ -1,4 +1,3 @@
-use miette::Report;
 use std::{fs::File, io::Read, path::PathBuf};
 
 use crate::{
@@ -63,7 +62,7 @@ pub enum Commands {
     /// Run the controller service
     Controller {
         /// Host for the controller (optional)
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "http://localhost")]
         controller_host: Option<String>,
         /// Port for the controller
         #[arg(long, default_value = "4445")]
@@ -78,7 +77,7 @@ pub enum Commands {
     /// Run the release agent service
     ReleaseAgent {
         /// Host for the release agent (optional)
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "http://localhost")]
         release_agent_host: Option<String>,
         /// Port for the release agent
         #[arg(long, default_value = "4446")]
@@ -111,7 +110,7 @@ pub enum Commands {
     /// Run the scheduler service
     Scheduler {
         /// Host for the scheduler (optional)
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "http://localhost")]
         scheduler_host: Option<String>,
         /// Port for the scheduler
         #[arg(long, default_value = "4447")]
@@ -123,7 +122,7 @@ pub enum Commands {
     /// Run the agent service
     Agent {
         /// Host for the agent (optional)
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "http://localhost")]
         agent_host: Option<String>,
         /// Port for the agent
         #[arg(long, default_value = "4448")]
