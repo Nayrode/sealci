@@ -1,11 +1,12 @@
 use std::fmt::Display;
-use std::io::Error;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
+
 use tonic::transport::Server;
 use tracing::info;
 use sealcid_traits::status::Status;
 use crate::{
+    errors::Error,
     interfaces::server::{agent_interface::AgentService, controller_interface::ControllerService},
     logic::agent_pool_logic::AgentPool,
     proto::{
@@ -84,11 +85,9 @@ impl App {
         }
     }
 
-    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
-
+    pub async fn start(&self) -> Result<(), Error> {
         // Initializes the Agent Pool and Action queue. They are lost when the Scheduler dies.
         let agent_pool = Arc::new(Mutex::new(AgentPool::new()));
-        //let action_queue = Arc::new(Mutex::new(ActionsQueue::new()));
 
         // Pass the shared Agent Pool to Agent and Controller services.
         let agent = AgentService::new(agent_pool.clone());
@@ -96,15 +95,17 @@ impl App {
 
         let service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
-            .build()?;
+            .build_v1()
+            .map_err(|e| Error::GrpcSetupError(tonic::Status::internal(e.to_string())))?;
 
         info!("Starting gRPC server at {}", self.config.addr);
         Server::builder()
             .add_service(service)
             .add_service(AgentServer::new(agent))
             .add_service(ControllerServer::new(controller))
-            .serve(self.config.addr.parse()?)
-            .await?;
+            .serve(self.config.addr.parse().map_err(|e| Error::AddrParseError(e))?)
+            .await
+            .map_err(|e| Error::GrpcServerError(tonic::Status::internal(e.to_string())))?;
         Ok(())
     }
 }

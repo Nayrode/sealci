@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use crate::logic::agent_pool_logic::Agent as PoolAgent;
 use crate::logic::agent_pool_logic::{compute_score, AgentPool};
 use crate::logic::agent_pool_logic::Hostname;
@@ -32,40 +34,41 @@ impl Agent for AgentService {
         // Extract the inner data from the request.
         let inner_req = request.into_inner();
 
-        let input = match inner_req.health {
-            Some(health) => health,
-            None => {
-                error!("Health status is missing in the request");
-                return Err(tonic::Status::invalid_argument("Health status is missing"));
-            }
-        };
+        let input = inner_req.health.ok_or_else(|| {
+            error!("Health status is missing in the request");
+            return Error::GrpcRequestError(tonic::Status::invalid_argument("Health status is missing"));
+        })?;
+
+        let cpu_avail = input.cpu_avail.clone();
+        let memory_avail = input.memory_avail.clone();
 
         info!("Received request from Agent: {:?}", input);
         info!(
             "\n  - Agent CPU usage: {}\n  - Agent memory usage: {}",
-            input.cpu_avail, input.memory_avail
+            cpu_avail, memory_avail
         );
 
-        let hostname = match inner_req.hostname {
-            Some(host) => host,
-            None => {
-                error!("Hostname is missing in the request");
-                return Err(tonic::Status::invalid_argument("Hostname is missing"));
-            }
-        };
+        // Unwrap `hostname` or return a custom error
+        let hostname = inner_req.hostname.ok_or_else(|| {
+            error!("Hostname is missing in the request");
+            return Error::GrpcRequestError(tonic::Status::invalid_argument("Hostname is missing"));
+        })?;
+
+        let host = hostname.host.clone();
+        let port = hostname.port.clone();
 
         info!("Received request from Agent: {:?}", hostname);
         info!(
             "\n  - Agent host usage: {}\n  - Agent port usage: {}",
-            hostname.host, hostname.port
+            host, port
         );
 
         // Lock the Agent Pool (to ensure thread-safe access). This is a tokio Mutex, not a standard one.
         let mut pool = self.agent_pool.lock().await;
 
         let id = pool.generate_unique_id();
-        let score = compute_score(input.cpu_avail, input.memory_avail);
-        let new_hostname = Hostname::new(hostname.host, hostname.port);
+        let score = compute_score(cpu_avail, memory_avail);
+        let new_hostname = Hostname::new(host, port);
 
         // Create a new Agent and add it to the Pool (it gets sorted)
         let new_agent = PoolAgent::new(id, new_hostname, score);

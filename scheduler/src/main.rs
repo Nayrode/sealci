@@ -1,13 +1,14 @@
 use clap::Parser;
 
 #[derive(Debug, Clone, Parser)]
-pub struct Config {
-    #[clap(short, long, default_value = "0.0.0.0:50051")]
+struct Config {
+    #[clap(short, long, default_value = "0.0.0.0:50051",
+            help = "The address to bind the gRPC server to")]
     pub addr: String,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), sealci_scheduler::errors::Error> {
     tracing_subscriber::fmt::init();
 
     let config = Config::parse();

@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use crate::proto::actions as proto;
 use proto::action_service_client::ActionServiceClient as ActionClient;
 
@@ -5,19 +7,23 @@ use crate::logic::action_queue_logic::Action;
 
 use tonic::transport::Channel;
 use tonic::Request;
-use std::error::Error;
-use tracing::{debug, error};
+use tracing::debug;
 
-pub(crate) async fn execution_action(action: Action, agent_address: String) -> Result<tonic::Streaming<proto::ActionResponseStream>, Box<dyn Error + Send + Sync>> {
-    // Handle case where hostname is empty
-    if agent_address == "unknown:unknown" {
-        error!("Hostname is empty. Cannot resolve IP address.");
-        return Err(Box::from("Hostname is empty. Cannot resolve IP address."));
-    }
+pub(crate) async fn execution_action(
+    action: Action, agent_address: String
+) -> Result<tonic::Streaming<proto::ActionResponseStream>, Error> {
+    debug!("Received action: {:?}", action);
 
-    debug!("Connecting to agent at address: {}", agent_address);
+    debug!("Attempting to connect to agent at address: {}", agent_address);
 
-    let channel = Channel::builder(agent_address.parse()?).connect().await?;
+    let channel = Channel::builder(
+        agent_address
+            .parse::<http::uri::Uri>()
+            .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?
+    )
+    .connect()
+    .await
+    .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?;
     let mut client = ActionClient::new(channel);
 
     debug!("Creating ActionRequest for action ID: {}", action.get_action_id());
@@ -35,6 +41,7 @@ pub(crate) async fn execution_action(action: Action, agent_address: String) -> R
     debug!("Sending ActionRequest: {:?}", request);
 
     // The response stream is returned to the caller function for further processing. (controller_interface.rs)
-    let response_stream = client.execution_action(request).await?.into_inner();
+    let response_stream = client.execution_action(request).await
+        .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?.into_inner();
     Ok(response_stream)
 }

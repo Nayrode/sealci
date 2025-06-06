@@ -1,17 +1,17 @@
 //use scheduler::proto::agent as agent;
-use scheduler::proto::scheduler as agent;
+use sealci_scheduler::proto::scheduler as agent;
 use agent::agent_server::AgentServer;
 
 //use scheduler::proto::controller as controller;
-use scheduler::proto::scheduler as controller;
+use sealci_scheduler::proto::scheduler as controller;
 use controller::controller_server::ControllerServer;
 use controller::{controller_client::ControllerClient, ActionRequest, ExecutionContext, RunnerType};
 
-use scheduler::interfaces::server as server;
+use sealci_scheduler::interfaces::server as server;
 use server::agent_interface::AgentService;
 use server::controller_interface::ControllerService;
 
-use scheduler::logic as logic;
+use sealci_scheduler::logic as logic;
 use logic::agent_pool_logic::AgentPool;
 // use logic::action_queue_logic::ActionsQueue;
 
@@ -32,8 +32,8 @@ async fn test_schedule_action() -> Result<(), Box<dyn Error>> {
         let agent = AgentService::new(agent_pool.clone());
         let controller = ControllerService::new(agent_pool.clone());
         let service = tonic_reflection::server::Builder::configure()
-            .register_encoded_file_descriptor_set(scheduler::proto::FILE_DESCRIPTOR_SET)
-            .build()
+            .register_encoded_file_descriptor_set(sealci_scheduler::proto::FILE_DESCRIPTOR_SET)
+            .build_v1()
             .unwrap();
 
         Server::builder()
