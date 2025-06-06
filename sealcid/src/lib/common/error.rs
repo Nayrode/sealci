@@ -1,13 +1,13 @@
-use std::fmt::Display;
-
+#[derive(Debug)]
 pub enum Error {
     Unhandled,
     RestartAgentError(agent::models::error::Error),
-    RestartControllerError(controller::application::AppError),
-    RestartMonitorError(monitor::error::Error),
+    RestartControllerError(String),
+    RestartMonitorError(String),
     ToggleAgentError(agent::models::error::Error),
     ToggleControllerError(controller::application::AppError),
     ToggleMonitorError(monitor::error::Error),
+    RestartSchedulerError(String),
 }
 
 impl Into<String> for Error {
@@ -20,6 +20,7 @@ impl Into<String> for Error {
             Error::ToggleAgentError(e) => format!("Failed to toggle agent: {}", e),
             Error::ToggleControllerError(e) => format!("Failed to toggle controller: {}", e),
             Error::ToggleMonitorError(e) => format!("Failed to toggle monitor: {}", e),
+            Error::RestartSchedulerError(_) => "Failed to restart scheduler".to_string(),
         }
     }
 }

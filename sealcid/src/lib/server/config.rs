@@ -1,5 +1,4 @@
-use std::fmt::format;
-use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation};
+use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation};
 
 pub trait Update<Mutation> {
     /// Updates the configuration with the given mutation.
@@ -48,7 +47,7 @@ impl Update<AgentMutation> for GlobalConfig {
         if let Some(ahost) = mutation.agent_host {
             self.agent_host = ahost;
         }
-        if let Some(port) = self.agent_port {
+        if let Some(port) = mutation.agent_port {
             self.agent_port = port;
         }
     }
@@ -103,7 +102,7 @@ impl Into<agent::config::Config> for GlobalConfig {
 impl Into<controller::config::Config> for GlobalConfig {
     fn into(self) -> controller::config::Config {
         controller::config::Config {
-            http: !format!("0.0.0.0:{}", self.controller_port),
+            http: format!("0.0.0.0:{}", self.controller_port),
             database_url: self.database_url,
             grpc: self.scheduler_host + ":" + &self.scheduler_port,
         }
@@ -122,7 +121,7 @@ impl Into<monitor::config::Config> for GlobalConfig {
 impl Into<sealci_scheduler::app::Config> for GlobalConfig {
     fn into(self) -> sealci_scheduler::app::Config {
         sealci_scheduler::app::Config {
-            addr: !format!("0.0.0.0:{}", self.scheduler_port),
+            addr: format!("0.0.0.0:{}", self.scheduler_port),
         }
     }
 }

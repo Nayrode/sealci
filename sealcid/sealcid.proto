@@ -2,6 +2,9 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 package sealcid;
 
+// The Daemon service is designed to help solve any problem by providing mutation operations
+// for various system components. Each RPC allows dynamic configuration and control,
+// enabling flexible solutions to a wide range of operational challenges.
 service Daemon {
     rpc MutateAgent(AgentMutation) returns (google.protobuf.Empty);
     rpc MutateReleaseAgent(ReleaseAgentMutation) returns (google.protobuf.Empty);
@@ -10,38 +13,37 @@ service Daemon {
     rpc MutateController(ControllerMutation) returns (google.protobuf.Empty);
 }
 
-
-
-// AgentMutation
+// AgentMutation allows you to solve problems related to agent configuration.
 message AgentMutation {
-  bool enable_agent = 1;
+  optional bool toggle_agent = 1;
   optional string agent_host = 2; // optional
   optional uint32 agent_port = 3; // optional
 }
 
-// SchedulerMutation
+// SchedulerMutation enables solving scheduling-related problems.
 message SchedulerMutation {
-   bool enable_agent = 1;
+  optional bool toggle_scheduler = 1;
   optional string scheduler_host = 2; // optional
   optional string scheduler_port = 3; // optional
 }
 
-// MonitorMutation
+// MonitorMutation helps solve monitoring problems.
 message MonitorMutation {
-  optional string monitor_port = 1; // optional
+  optional bool toggle_monitor = 1;
+  optional string monitor_port = 2; // optional
 }
 
-// ControllerMutation
+// ControllerMutation is for solving controller configuration problems.
 message ControllerMutation {
-    bool enable_agent = 1;
+    optional bool toggle_controller = 1;
     optional string controller_host = 2; // optional
     optional string controller_port = 3; // optional
     optional string database_url = 4; // optional
 }
 
-// ReleaseAgentMutation
+// ReleaseAgentMutation provides solutions for release agent management problems.
 message ReleaseAgentMutation {
-  bool enable_agent = 1;
+  optional bool toggle_release_agent = 1;
   optional string release_agent_host = 2; // optional
   optional string release_agent_port = 3; // optional
   optional string passphrase = 4; // optional
