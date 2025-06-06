@@ -1,6 +1,9 @@
-pub trait Update<Config> {
+use std::fmt::format;
+use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation};
+
+pub trait Update<Mutation> {
     /// Updates the configuration with the given mutation.
-    fn update(&mut self, config: Config);
+    fn update(&mut self, mutation: Mutation);
 }
 
 #[derive(Debug, Clone)]
@@ -40,25 +43,50 @@ pub struct GlobalConfig {
     pub agent_port: u32,
 }
 
-impl Update<agent::config::Config> for GlobalConfig {
-    fn update(&mut self, config: agent::config::Config) {
-        self.agent_host = config.ahost.clone();
-        self.agent_port = config.port;
+impl Update<AgentMutation> for GlobalConfig {
+    fn update(&mut self, mutation: AgentMutation) {
+        if let Some(ahost) = mutation.agent_host {
+            self.agent_host = ahost;
+        }
+        if let Some(port) = self.agent_port {
+            self.agent_port = port;
+        }
     }
 }
 
-impl Update<controller::config::Config> for GlobalConfig {
-    fn update(&mut self, config: controller::config::Config) {
-        self.controller_host = config.http.clone();
-        self.controller_port = config.http.split(':').last().unwrap_or("8080").to_string();
-        self.database_url = config.database_url.clone();
+impl Update<ControllerMutation> for GlobalConfig {
+    fn update(&mut self, mutation: ControllerMutation) {
+        if let Some(host) = mutation.controller_host {
+            self.controller_host = host;
+        }
+        if let Some(port) = mutation.controller_port {
+            self.controller_port = port;
+        }
+        if let Some(database_url) = mutation.database_url {
+            self.database_url = database_url;
+        }
     }
 }
 
-impl Update<monitor::config::Config> for GlobalConfig {
-    fn update(&mut self, config: monitor::config::Config) {
-        self.monitor_port = config.port.to_string();
-        self.controller_host = config.controller_host.clone();
+impl Update<MonitorMutation> for GlobalConfig {
+    fn update(&mut self, mutation: MonitorMutation) {
+        if let Some(port) = mutation.monitor_port {
+            self.monitor_port = port.to_string();
+        }
+        // if let Some(controller_host) = mutation. {
+        //     self.controller_host = controller_host;
+        // }
+    }
+}
+
+impl Update<SchedulerMutation> for GlobalConfig {
+    fn update(&mut self, mutation: SchedulerMutation) {
+        if let Some(host) = mutation.scheduler_host {
+            self.scheduler_host = host;
+        }
+        if let Some(port) = mutation.scheduler_port {
+            self.scheduler_port = port;
+        }
     }
 }
 
@@ -66,7 +94,7 @@ impl Into<agent::config::Config> for GlobalConfig {
     fn into(self) -> agent::config::Config {
         agent::config::Config {
             shost: self.scheduler_host + ":" + &self.scheduler_port,
-            ahost: self.agent_host,
+            ahost: "0.0.0.0".to_string(),
             port: self.agent_port,
         }
     }
@@ -75,7 +103,7 @@ impl Into<agent::config::Config> for GlobalConfig {
 impl Into<controller::config::Config> for GlobalConfig {
     fn into(self) -> controller::config::Config {
         controller::config::Config {
-            http: self.controller_host + ":" + &self.controller_port,
+            http: !format!("0.0.0.0:{}", self.controller_port),
             database_url: self.database_url,
             grpc: self.scheduler_host + ":" + &self.scheduler_port,
         }
@@ -85,8 +113,16 @@ impl Into<controller::config::Config> for GlobalConfig {
 impl Into<monitor::config::Config> for GlobalConfig {
     fn into(self) -> monitor::config::Config {
         monitor::config::Config {
-            controller_host: self.controller_host,
+            controller_host: "0.0.0.0".to_string(),
             port: self.monitor_port.parse().unwrap_or(9001),
+        }
+    }
+}
+
+impl Into<sealci_scheduler::app::Config> for GlobalConfig {
+    fn into(self) -> sealci_scheduler::app::Config {
+        sealci_scheduler::app::Config {
+            addr: !format!("0.0.0.0:{}", self.scheduler_port),
         }
     }
 }

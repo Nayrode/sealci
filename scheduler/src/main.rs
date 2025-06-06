@@ -12,11 +12,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::parse();
 
-    let app = sealci_scheduler::app::App::new(sealci_scheduler::app::Config{
+    let app = sealci_scheduler::app::App::init(sealci_scheduler::app::Config{
         addr: config.addr,
     });
 
-    app.run().await?;
+    app.start().await?;
 
     Ok(())
 }

@@ -81,10 +81,4 @@ impl Daemon {
         // Restart controller, release agent
         Ok(())
     }
-
-    pub async fn mutate_scheduler(&mut self, config: SchedulerMutation) -> Result<(), Error> {
-        // Placeholder for scheduler mutation logic
-        // Restart agent, scheduler
-        Ok(())
-    }
 }
