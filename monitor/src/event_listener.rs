@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(serde::Serialize)]
 pub struct Listener {
@@ -58,7 +58,10 @@ impl Listener {
     }
 
     pub async fn listen_to_commits(&self) -> Result<(), Error> {
-        info!("Searching commits....");
+        debug!(
+            "Searching commits for {}-{}",
+            self.repo_owner, self.repo_name
+        );
 
         let last_commit = self
             .github_client
@@ -69,8 +72,6 @@ impl Listener {
                 None,
             )
             .await?;
-
-        info!("Last commit found: {}", last_commit);
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
@@ -121,6 +122,10 @@ impl Listener {
     }
 
     pub async fn listen_to_pull_requests(&self) -> Result<(), Error> {
+        debug!(
+            "Searching pull requests for {}-{}",
+            self.repo_owner, self.repo_name
+        );
         let last_pull_requests = self
             .github_client
             .get_pull_requests(
@@ -180,6 +185,10 @@ impl Listener {
     }
 
     pub async fn listen_to_tags(&self) -> Result<(), Error> {
+        debug!(
+            "Searching pull requests for {}-{}",
+            self.repo_owner, self.repo_name
+        );
         let tags = self
             .github_client
             .get_tags(
@@ -210,8 +219,6 @@ impl Listener {
                     .await
                 {
                     Ok(current_tags) => {
-                        info!("Current tags: {:?}", current_tags);
-
                         // Identify new tags by checking which tags are in current_tags but not in last_tags
                         let new_tags: Vec<GitTag> = current_tags
                             .iter()
