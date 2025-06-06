@@ -35,14 +35,14 @@ impl Agent for AgentService {
         let inner_req = request.into_inner();
 
         let input = inner_req.health.ok_or_else(|| {
-            error!("Health status is missing in the request");
+            error!("[Scheduler]: Health status is missing in the request");
             return Error::GrpcRequestError(tonic::Status::invalid_argument("Health status is missing"));
         })?;
 
         let cpu_avail = input.cpu_avail.clone();
         let memory_avail = input.memory_avail.clone();
 
-        info!("Received request from Agent: {:?}", input);
+        info!("[Scheduler]: Received request from Agent: {:?}", input);
         info!(
             "\n  - Agent CPU usage: {}\n  - Agent memory usage: {}",
             cpu_avail, memory_avail
@@ -50,14 +50,14 @@ impl Agent for AgentService {
 
         // Unwrap `hostname` or return a custom error
         let hostname = inner_req.hostname.ok_or_else(|| {
-            error!("Hostname is missing in the request");
+            error!("[Scheduler]: Hostname is missing in the request");
             return Error::GrpcRequestError(tonic::Status::invalid_argument("Hostname is missing"));
         })?;
 
         let host = hostname.host.clone();
         let port = hostname.port.clone();
 
-        info!("Received request from Agent: {:?}", hostname);
+        info!("[Scheduler]: Received request from Agent: {:?}", hostname);
         info!(
             "\n  - Agent host usage: {}\n  - Agent port usage: {}",
             host, port
@@ -93,7 +93,7 @@ impl Agent for AgentService {
             let status = match health_status {
                 Ok(status) => status,
                 Err(e) => {
-                    error!("Error receiving health status: {:?}", e);
+                    error!("[Scheduler]: Error receiving health status: {:?}", e);
                     return Err(tonic::Status::internal("Error receiving health status"));
                 }
             };
@@ -101,13 +101,13 @@ impl Agent for AgentService {
             let health = match status.health {
                 Some(health) => health,
                 None => {
-                    error!("Health field is missing for Agent {}", status.agent_id);
+                    error!("[Scheduler]: Health field is missing for Agent {}", status.agent_id);
                     continue; // Skip to the next health status if health data is missing
                 }
             };
 
             info!(
-                "Received health status from agent {}: CPU: {}, Memory: {}",
+                "[Scheduler]: Received health status from agent {}: CPU: {}, Memory: {}",
                 status.agent_id, health.cpu_avail, health.memory_avail
             );
 
@@ -118,7 +118,7 @@ impl Agent for AgentService {
             let agent = match pool.find_agent_mut(status.agent_id) {
                 Some(agent) => agent,
                 None => {
-                    error!("Agent ID {} not found in the Pool", status.agent_id);
+                    error!("[Scheduler]: Agent ID {} not found in the Pool", status.agent_id);
                     continue; // Skip to the next health status if the agent is not found
                 }
             };

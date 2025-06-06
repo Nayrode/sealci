@@ -43,7 +43,7 @@ impl Controller for ControllerService {
         })?;
 
         info!(
-            "Received Action request: {}, Runner type: {}",
+            "[Scheduler]: Received Action request: {}, Runner type: {}",
             container_image.clone().unwrap_or_default(),
             runner_type.as_str_name()
         );
@@ -53,7 +53,7 @@ impl Controller for ControllerService {
         let agent = match pool.peek() {
             Some(agent) => agent,
             None => {
-                warn!("No Agents available to execute Action");
+                warn!("[Scheduler]: No Agents available to execute Action");
                 // Send back an error response now, and close the stream.
                 let (tx, rx) = mpsc::unbounded_channel::<Result<proto::ActionResponse, tonic::Status>>();
                 let error_response = proto::ActionResponse {
@@ -70,7 +70,7 @@ impl Controller for ControllerService {
         };
 
         let agent_ip = agent.get_ip_address().map_err(|e| {
-            warn!("Failed to get Agent IP address: {}", e);
+            warn!("[Scheduler]: Failed to get Agent IP address: {}", e);
             tonic::Status::internal(format!("Failed to get Agent IP address: {}", e))
         })?;
 
@@ -123,18 +123,18 @@ impl Controller for ControllerService {
                                 };
 
                                 if tx.send(Ok(action_response)).is_err() {
-                                    warn!("Failed to send action response");
+                                    warn!("[Scheduler]: Failed to send action response");
                                     break;
                                 }
                             }
                             None => {
-                                warn!("Received a response with no result");
+                                warn!("[Scheduler]: Received a response with no result");
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to execute Action: {}", e);
+                    warn!("[Scheduler]: Failed to execute Action: {}", e);
                     let error_response = proto::ActionResponse {
                         action_id: action_request.action_id,
                         log: format!("Failed to execute Action: {}", e),

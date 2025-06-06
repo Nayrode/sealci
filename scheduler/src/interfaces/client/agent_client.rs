@@ -12,9 +12,9 @@ use tracing::debug;
 pub(crate) async fn execution_action(
     action: Action, agent_address: String
 ) -> Result<tonic::Streaming<proto::ActionResponseStream>, Error> {
-    debug!("Received action: {:?}", action);
+    debug!("[Scheduler]: Received action: {:?}", action);
 
-    debug!("Attempting to connect to agent at address: {}", agent_address);
+    debug!("[Scheduler]: Attempting to connect to agent at address: {}", agent_address);
 
     let channel = Channel::builder(
         agent_address
@@ -26,7 +26,7 @@ pub(crate) async fn execution_action(
     .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?;
     let mut client = ActionClient::new(channel);
 
-    debug!("Creating ActionRequest for action ID: {}", action.get_action_id());
+    debug!("[Scheduler]: Creating ActionRequest for action ID: {}", action.get_action_id());
 
     let request = Request::new(proto::ActionRequest {
         action_id: action.get_action_id(),
@@ -38,7 +38,7 @@ pub(crate) async fn execution_action(
         repo_url: action.get_repo_url().clone(),
     });
 
-    debug!("Sending ActionRequest: {:?}", request);
+    debug!("[Scheduler]: Sending ActionRequest: {:?}", request);
 
     // The response stream is returned to the caller function for further processing. (controller_interface.rs)
     let response_stream = client.execution_action(request).await

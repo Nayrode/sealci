@@ -33,6 +33,7 @@ impl sealcid_traits::App<Config> for App {
         let mut process = app_process.write().await;
         *process = tokio::spawn(async move {
             let _ = app_clone.start().await;
+            info!("[Scheduler]: Scheduler service has stopped.");
             Ok(())
         });
         Ok(())
@@ -91,7 +92,7 @@ impl App {
             .build_v1()
             .map_err(|e| Error::GrpcSetupError(tonic::Status::internal(e.to_string())))?;
 
-        info!("Starting gRPC server at {}", self.config.addr);
+        info!("[Scheduler]: Starting gRPC server at {}", self.config.addr);
         Server::builder()
             .add_service(service)
             .add_service(AgentServer::new(self.agent.clone()))
