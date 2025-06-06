@@ -1,5 +1,4 @@
-use std::fmt::Display;
-
+#[derive(Debug)]
 pub enum Error {
     Unhandled,
     RestartAgentError(agent::models::error::Error),
@@ -9,6 +8,7 @@ pub enum Error {
     ToggleControllerError(controller::application::AppError),
     ToggleMonitorError(monitor::error::Error),
 }
+
 
 impl Into<String> for Error {
     fn into(self) -> String {

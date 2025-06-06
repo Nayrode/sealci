@@ -31,7 +31,19 @@ pub struct SchedulerMutation {
 impl Apply<MonitorConfig> for MonitorMutation {
     fn apply(&self, config: &mut MonitorConfig) {
         if let Some(port) = self.monitor_port.clone() {
-            config.port = 2;
+            config.port = port.parse().unwrap();
+        }
+    }
+}
+
+// Controller
+impl Apply<MonitorConfig> for ControllerMutation {
+    fn apply(&self, config: &mut MonitorConfig) {
+        if let Some(host) = self.controller_host.clone() {
+            config.controller_host = host;
+        }
+        if let Some(port) = self.controller_port.clone() {
+            config.port = port.parse().unwrap();
         }
     }
 }
