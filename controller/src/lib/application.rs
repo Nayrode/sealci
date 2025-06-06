@@ -15,6 +15,7 @@ use actix_web::dev::Server;
 use actix_web::web::Data;
 use actix_web::HttpServer;
 use sealcid_traits::status::Status;
+use tracing::info;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -60,7 +61,18 @@ impl sealcid_traits::App<Config> for App {
         let app_clone = self.clone();
         let mut process = app_process.write().await;
         *process = tokio::spawn(async move {
-            let _ = app_clone.start().await?.await;
+            info!("Starting Controller service...");
+            match app_clone.start().await {
+                Ok(server) => {
+                    if let Err(err) = server.await {
+                        tracing::error!("Server error: {:?}", err);
+                    }
+                }
+                Err(err) => {
+                    tracing::error!("Failed to start server: {:?}", err);
+                }
+            }
+            
             Ok(())
         });
         Ok(())
@@ -98,9 +110,6 @@ impl sealcid_traits::App<Config> for App {
 
 impl App {
     pub async fn init(config: Config) -> Result<Self, AppError> {
-        // Initialize tracing subscriber for logging
-        tracing_subscriber::fmt::init();
-
         // Initialize application context with database and gRPC service configurations
         Ok(Self {
             config: Arc::new(config),
@@ -112,6 +121,8 @@ impl App {
         let app_context: AppContext =
             AppContext::initialize(&self.config.database_url, &self.config.grpc).await?;
         let config = Arc::clone(&self.config);
+        let app_context =
+            Arc::new(AppContext::initialize(&config.database_url, &config.grpc).await?);
         // Start HTTP server with CORS, logging middleware, and configured routes
         Ok(HttpServer::new(move || {
             // Configure CORS to allow any origin/method/header, cache preflight for 1 hour

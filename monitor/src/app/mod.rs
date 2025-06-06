@@ -31,15 +31,34 @@ impl sealcid_traits::App<Config> for App {
     type Error = Error;
 
     async fn run(&self) -> Result<(), Error> {
-        let app_process = self.app_process.clone();
-        let app_clone = self.clone();
-        let mut process = app_process.write().await;
-        *process = tokio::spawn(async move {
-            let _ = app_clone.start();
+            let app_process = self.app_process.clone();
+            let app_clone = self.clone();
+            let mut process = app_process.write().await;
+            *process = tokio::spawn(async move {
+                info!("Starting Monitor service...");
+
+                let server_result = app_clone.start().await;
+                match server_result {
+                    Ok(server) => {
+                        match server.await {
+                            Ok(_) => {
+                                info!("App started successfully");
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to run server: {:?}", e);
+                                return Err(Error::ServerError(e));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to start app: {:?}", e);
+                        return Err(e);
+                    }
+                }
+                Ok(())
+            });
             Ok(())
-        });
-        Ok(())
-    }
+        }
 
     async fn configure(config: Config) -> Result<Self, Error> {
         Self::init(config).await
