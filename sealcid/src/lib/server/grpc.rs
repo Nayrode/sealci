@@ -55,23 +55,40 @@ impl DaemonGrpc for Daemon {
         }
         self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
+        println!("Acquired read lock on global_config");
         let scheduler_config: SchedulerConfig = global_config.to_owned().into();
+        println!("Converted global_config to SchedulerConfig",);
         self.scheduler
             .restart_with_config(scheduler_config)
             .await
-            .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+            .map_err(|e| {
+                println!("Failed to restart scheduler: {:?}", e);
+                Status::failed_precondition(Error::RestartSchedulerError(e))
+            })?;
+        println!("Scheduler restarted successfully");
         let controller_config: ControllerConfig = global_config.to_owned().into();
+        println!(
+            "Converted global_config to ControllerConfig: {:?}",
+            controller_config
+        );
         self.controller
             .restart_with_config(controller_config)
             .await
             .map_err(|e| {
+                println!("Failed to restart controller: {:?}", e);
                 Status::failed_precondition(Error::RestartControllerError(e))
             })?;
+        println!("Controller restarted successfully");
         let agent_config: AgentConfig = global_config.to_owned().into();
+        println!("Converted global_config to AgentConfig");
         self.agent
             .restart_with_config(agent_config)
             .await
-            .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
+            .map_err(|e| {
+                println!("Failed to restart agent: {:?}", e);
+                Status::failed_precondition(Error::RestartAgentError(e))
+            })?;
+        println!("Agent restarted successfully");
         Ok(Response::new(()))
     }
 
@@ -112,9 +129,7 @@ impl DaemonGrpc for Daemon {
         self.controller
             .restart_with_config(controller_config)
             .await
-            .map_err(|e| {
-                Status::failed_precondition(Error::RestartControllerError(e))
-            })?;
+            .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
         let monitor_config: MonitorConfig = global_config.to_owned().into();
         self.monitor
             .restart_with_config(monitor_config)

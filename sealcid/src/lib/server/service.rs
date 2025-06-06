@@ -31,8 +31,7 @@ where
         *self.config.write().await = config.clone().into();
         let enabled = *self.enabled.read().await;
         if enabled {
-            let app = &self.app.read().await;
-            app.run().await?;
+            app_guard.run().await?;
         }
         Ok(())
     }

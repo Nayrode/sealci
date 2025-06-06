@@ -47,7 +47,7 @@ impl Default for GlobalConfig {
             monitor_port: "4444".to_string(),
             controller_host: "http://localhost".to_string(),
             controller_port: "4445".to_string(),
-            database_url: "postgres://user:password@localhost/db".to_string(),
+            database_url: "postgres://postgres:postgres@localhost/sealci".to_string(),
             release_agent_host: "http://localhost".to_string(),
             release_agent_port: "4446".to_string(),
             passphrase: "changeme".to_string(),

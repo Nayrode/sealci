@@ -6,6 +6,8 @@ use sealcid::{
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    tracing_subscriber::fmt::init();
+
     let sealcid_config = Cli::parse();
     let global_config = GlobalConfig::default();
     let deamon = Daemon::new(global_config).await?;

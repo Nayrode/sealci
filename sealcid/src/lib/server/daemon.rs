@@ -23,21 +23,18 @@ pub struct Daemon {
 
 impl Daemon {
     pub async fn new(global_config: GlobalConfig) -> Result<Self, Error> {
-        let scheduler = SchedulerApp::configure(global_config.clone().into())
-            .await
-            .map_err(Error::ConfigureSchedulerError)?;
-        println!("dasfasdf");
-        let agent = AgentApp::configure(global_config.clone().into())
-            .await
-            .map_err(Error::ConfigureAgentError)?;
-        println!("dasfasdf");
-
-        let controller = ControllerApp::configure(global_config.clone().into())
-            .await
-            .map_err(Error::ConfigureControllerError)?;
         let monitor = MonitorApp::configure(global_config.clone().into())
             .await
             .map_err(Error::ConfigureMonitorError)?;
+        let scheduler = SchedulerApp::configure(global_config.clone().into())
+            .await
+            .map_err(Error::ConfigureSchedulerError)?;
+        let agent = AgentApp::configure(global_config.clone().into())
+            .await
+            .map_err(Error::ConfigureAgentError)?;
+        let controller = ControllerApp::configure(global_config.clone().into())
+            .await
+            .map_err(Error::ConfigureControllerError)?;
 
         Ok(Self {
             global_config: Arc::new(RwLock::new(global_config.clone())),
