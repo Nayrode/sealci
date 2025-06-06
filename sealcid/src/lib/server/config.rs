@@ -97,9 +97,6 @@ impl Update<MonitorMutation> for GlobalConfig {
         if let Some(port) = mutation.monitor_port {
             self.monitor_port = port.to_string();
         }
-        // if let Some(controller_host) = mutation. {
-        //     self.controller_host = controller_host;
-        // }
     }
 }
 
@@ -137,7 +134,7 @@ impl Into<controller::config::Config> for GlobalConfig {
 impl Into<monitor::config::Config> for GlobalConfig {
     fn into(self) -> monitor::config::Config {
         monitor::config::Config {
-            controller_host: "0.0.0.0".to_string(),
+            controller_host: format!("{}:{}", self.controller_host, self.controller_port),
             port: self.monitor_port.parse().unwrap_or(9001),
         }
     }

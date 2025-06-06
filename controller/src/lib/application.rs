@@ -118,8 +118,6 @@ impl App {
     }
 
     pub async fn start(&self) -> Result<Server, AppError> {
-        let app_context: AppContext =
-            AppContext::initialize(&self.config.database_url, &self.config.grpc).await?;
         let config = Arc::clone(&self.config);
         info!("{}", config.grpc);
         let app_context =

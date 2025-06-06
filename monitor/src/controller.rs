@@ -18,7 +18,6 @@ impl ControllerClient {
         repo_url: &str,
         mut actions_file: &File,
     ) -> Result<(), Box<dyn std::error::Error>> {
-
         let mut file_ref = actions_file;
         if let Err(_) = actions_file.seek(SeekFrom::Start(0)) {
             return Err(Box::new(std::io::Error::new(
@@ -32,9 +31,10 @@ impl ControllerClient {
         // Lire le fichier dans un buffer
         let mut buffer: Vec<u8> = Vec::new();
         file_ref.read_to_end(&mut buffer)?;
+        println!("Debug: Read {} bytes from actions_file", buffer.len());
 
         // Créer une partie de formulaire avec le contenu du fichier
-        let file_part: Part = Part::bytes(buffer).file_name(repo_url.to_string());
+        let file_part: Part = Part::bytes(buffer);
 
         // Créer le formulaire multipart et ajouter les parties
         let form: Form = Form::new()
@@ -42,6 +42,7 @@ impl ControllerClient {
             .part("body", file_part);
 
         debug!("Sending pipeline to controller {}", self.controller_url);
+        println!("Debug: Sending POST to {}/pipeline with repo_url={}", self.controller_url, repo_url);
         // Envoyer la requête POST
         let res: Response = client
             .post(format!("{}/pipeline", self.controller_url.as_str()))
@@ -50,6 +51,7 @@ impl ControllerClient {
             .await?;
 
         info!("Response: {:?}", res);
+        println!("Debug: Response received from controller");
         Ok(())
     }
 }

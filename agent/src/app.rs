@@ -21,7 +21,6 @@ use crate::{
         scheduler_service::SchedulerService,
     },
 };
-use crate::models::error::Error::ConnectionError;
 
 #[derive(Clone)]
 pub struct App {
@@ -87,7 +86,6 @@ impl App {
         Ok(Self {
             action_service_grpc,
             config,
-            health_service,
             app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
         })
     }
