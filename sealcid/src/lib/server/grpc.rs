@@ -26,8 +26,7 @@ impl DaemonGrpc for Daemon {
             })?;
             return Ok(Response::new(()));
         }
-        let mut writer = self.global_config.write().await;
-        writer.update(new_config);
+        self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
         let agent_config: AgentConfig = global_config.to_owned().into();
         self.agent
@@ -54,8 +53,7 @@ impl DaemonGrpc for Daemon {
             })?;
             return Ok(Response::new(()));
         }
-        let mut writer = self.global_config.write().await;
-        writer.update(new_config);
+        self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
         let scheduler_config: SchedulerConfig = global_config.to_owned().into();
         self.scheduler
@@ -88,10 +86,8 @@ impl DaemonGrpc for Daemon {
             })?;
             return Ok(Response::new(()));
         }
-        let mut writer = self.global_config.write().await;
-        writer.update(new_config);
-        let global_config = self.global_config.read().await;
-        let monitor_config: MonitorConfig = global_config.to_owned().into();
+        self.global_config.write().await.update(new_config);
+        let monitor_config: MonitorConfig = self.global_config.read().await.to_owned().into();
         self.monitor
             .restart_with_config(monitor_config.clone())
             .await
@@ -110,8 +106,7 @@ impl DaemonGrpc for Daemon {
             })?;
             return Ok(Response::new(()));
         }
-        let mut writer = self.global_config.write().await;
-        writer.update(new_config);
+        self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
         let controller_config: ControllerConfig = global_config.to_owned().into();
         self.controller

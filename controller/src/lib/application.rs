@@ -49,7 +49,6 @@ impl std::fmt::Display for AppError {
 #[derive(Clone)]
 pub struct App {
     config: Arc<Config>,
-    app_context: Arc<app_context::AppContext>,
     app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), AppError>>>>,
 }
 
@@ -103,18 +102,15 @@ impl App {
         tracing_subscriber::fmt::init();
 
         // Initialize application context with database and gRPC service configurations
-        let app_context: AppContext =
-            AppContext::initialize(&config.database_url, &config.grpc).await?;
-
         Ok(Self {
             config: Arc::new(config),
-            app_context: Arc::new(app_context),
             app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
         })
     }
 
     pub async fn start(&self) -> Result<Server, AppError> {
-        let app_context = Arc::clone(&self.app_context);
+        let app_context: AppContext =
+            AppContext::initialize(&self.config.database_url, &self.config.grpc).await?;
         let config = Arc::clone(&self.config);
         // Start HTTP server with CORS, logging middleware, and configured routes
         Ok(HttpServer::new(move || {

@@ -26,7 +26,7 @@ use crate::models::error::Error::ConnectionError;
 #[derive(Clone)]
 pub struct App {
     config: Config,
-    scheduler_service: SchedulerService,
+    health_service: HealthService,
     action_service_grpc: ActionServiceServer<ActionsLauncher>,
     app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), Error>>>>,
 }
@@ -86,16 +86,25 @@ impl App {
         let action_service = ActionService::new(docker, state_broker.clone());
         let actions = ActionsLauncher { action_service };
         let action_service_grpc = ActionServiceServer::new(actions);
-        // Exponential backoff configuration
+        
+        Ok(Self {
+            action_service_grpc,
+            config,
+            health_service,
+            app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
+        })
+    }
+
+    pub async fn start(&mut self) -> Result<(), Error> {// Exponential backoff configuration
         let mut retry_delay = Duration::from_secs(2);
         const MAX_RETRY_DELAY: u64 = 64;
         let mut retry_count = 0;
         let mut scheduler_service = loop {
             match SchedulerService::init(
-                config.shost.clone(),
-                config.ahost.clone(),
-                config.port.clone(),
-                health_service.clone(),
+                self.config.shost.clone(),
+                self.config.ahost.clone(),
+                self.config.port.clone(),
+                self.health_service.clone(),
             )
                 .await {
                 Ok(client) => break client,
@@ -117,15 +126,6 @@ impl App {
             }
         };
         scheduler_service.register().await?;
-        Ok(Self {
-            action_service_grpc,
-            config,
-            scheduler_service,
-            app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
-        })
-    }
-
-    pub async fn start(&mut self) -> Result<(), Error> {
         let addr: SocketAddr = format!("0.0.0.0:{}", self.config.port)
             .parse()
             .map_err(|e: AddrParseError| Error::Error(e.to_string()))?;
@@ -133,9 +133,8 @@ impl App {
         let server = Server::builder()
             .add_service(self.action_service_grpc.clone())
             .serve(addr);
-        let mut service = self.clone();
         let health_report = task::spawn(async move {
-            let _ = service.scheduler_service.report_health().await;
+            let _ = scheduler_service.report_health().await;
         });
         tokio::select! {
             serve_res = server => {

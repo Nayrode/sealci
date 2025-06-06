@@ -21,10 +21,11 @@ where
         &self,
         config: impl Into<Config> + Clone,
     ) -> Result<(), App::Error> {
-        let app = &self.app.read().await;
+        let app = self.app.read().await;
         if let Err(_) = app.stop().await {
             tracing::error!("Failed to stop the app {}", app.name());
         }
+        drop(app); // Release the read lock before acquiring the write lock
         let new_app = App::configure(config.clone().into()).await?;
         *self.app.write().await = new_app;
         *self.config.write().await = config.clone().into();
