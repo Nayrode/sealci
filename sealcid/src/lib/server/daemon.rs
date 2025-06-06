@@ -9,7 +9,7 @@ use crate::{
     common::{
         error::Error,
         mutation::{
-            Apply, ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
+            ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
         },
         service_enum::Services,
     },
@@ -79,12 +79,6 @@ impl Daemon {
     ) -> Result<(), Error> {
         // Placeholder for release_agent mutation logic
         // Restart controller, release agent
-        Ok(())
-    }
-
-    pub async fn mutate_scheduler(&mut self, config: SchedulerMutation) -> Result<(), Error> {
-        // Placeholder for scheduler mutation logic
-        // Restart agent, scheduler
         Ok(())
     }
 }

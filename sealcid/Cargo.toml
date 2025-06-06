@@ -12,6 +12,7 @@ agent = { path = "../agent" }
 prost = "0.13.5"
 controller = { path = "../controller" }
 monitor = { path = "../monitor" }
+sealci_scheduler = { path = "../scheduler" }
 sealcid_traits = { path = "./sealcid_traits" }
 tokio = { version = "1.45.1", features = ["full"] }
 tonic = "0.13.1"

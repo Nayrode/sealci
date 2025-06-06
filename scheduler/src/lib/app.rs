@@ -1,8 +1,7 @@
 use std::fmt::Display;
+use std::io::Error;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-
-// use logic::action_queue_logic::ActionsQueue;
+use tokio::sync::{Mutex, RwLock};
 use tonic::transport::Server;
 use tracing::info;
 use sealcid_traits::status::Status;
@@ -15,9 +14,7 @@ use crate::{
     },
 };
 
-//use proto::agent::agent_server::AgentServer;
-//use proto::controller::controller_server::ControllerServer;
-
+#[derive(Clone)]
 pub struct Config {
     pub addr: String,
 }
@@ -30,7 +27,8 @@ impl Display for Config {
 
 #[derive(Clone)]
 pub struct App {
-    pub addr: String,
+    config: Config,
+    app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), Error>>>>,
 }
 
 impl sealcid_traits::App<Config> for App {
@@ -48,7 +46,7 @@ impl sealcid_traits::App<Config> for App {
     }
 
     async fn configure(config: Config) -> Result<Self, Error> {
-        Self::init(config).await
+        Ok(Self::init(config))
     }
 
     async fn stop(&self) -> Result<(), Error> {
@@ -80,7 +78,10 @@ impl sealcid_traits::App<Config> for App {
 
 impl App {
     pub fn init(config: Config) -> Self {
-        App { addr: config.addr }
+        App { 
+            config,
+            app_process: Arc::new(RwLock::new(tokio::spawn(async { Ok(()) }))),
+        }
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -97,12 +98,12 @@ impl App {
             .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
             .build()?;
 
-        info!("Starting gRPC server at {}", self.addr);
+        info!("Starting gRPC server at {}", self.config.addr);
         Server::builder()
             .add_service(service)
             .add_service(AgentServer::new(agent))
             .add_service(ControllerServer::new(controller))
-            .serve(self.addr.parse()?)
+            .serve(self.config.addr.parse()?)
             .await?;
         Ok(())
     }
