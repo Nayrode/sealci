@@ -38,7 +38,7 @@ impl ControllerClient {
         // Créer le formulaire multipart et ajouter les parties
         let form: Form = Form::new()
             .text("repo_url", repo_url.to_string())
-            .part("file", file_part);
+            .part("body", file_part);
 
         debug!("Sending pipeline to controller {}", self.controller_url);
 

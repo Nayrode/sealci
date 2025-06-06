@@ -119,9 +119,7 @@ impl App {
 
     pub async fn start(&self) -> Result<Server, AppError> {
         let config = Arc::clone(&self.config);
-        info!("{}", config.grpc);
-        let app_context =
-            Arc::new(AppContext::initialize(&config.database_url, &config.grpc).await?);
+        let app_context = AppContext::initialize(&config.database_url, &config.grpc).await?;
         // Start HTTP server with CORS, logging middleware, and configured routes
         Ok(HttpServer::new(move || {
             // Configure CORS to allow any origin/method/header, cache preflight for 1 hour
