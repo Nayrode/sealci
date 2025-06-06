@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use crate::proto::actions as proto;
 use proto::action_service_client::ActionServiceClient as ActionClient;
 
@@ -5,17 +7,18 @@ use crate::logic::action_queue_logic::Action;
 
 use tonic::transport::Channel;
 use tonic::Request;
-use std::error::Error;
-use tracing::{error};
 
-pub(crate) async fn execution_action(action: Action, agent_address: String) -> Result<tonic::Streaming<proto::ActionResponseStream>, Box<dyn Error + Send + Sync>> {
-    // Handle case where hostname is empty
-    if agent_address == "unknown:unknown" {
-        error!("Hostname is empty. Cannot resolve IP address.");
-        return Err(Box::from("Hostname is empty. Cannot resolve IP address."));
-    }
-
-    let channel = Channel::builder(agent_address.parse()?).connect().await?;
+pub(crate) async fn execution_action(
+    action: Action, agent_address: String
+) -> Result<tonic::Streaming<proto::ActionResponseStream>, Error> {
+    let channel = Channel::builder(
+        agent_address
+            .parse::<http::uri::Uri>()
+            .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?
+    )
+    .connect()
+    .await
+    .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?;
     let mut client = ActionClient::new(channel);
 
     let request = Request::new(proto::ActionRequest {
@@ -29,6 +32,7 @@ pub(crate) async fn execution_action(action: Action, agent_address: String) -> R
     });
 
     // The response stream is returned to the caller function for further processing. (controller_interface.rs)
-    let response_stream = client.execution_action(request).await?.into_inner();
+    let response_stream = client.execution_action(request).await
+        .map_err(|e| Error::GrpcClientError(tonic::Status::internal(e.to_string())))?.into_inner();
     Ok(response_stream)
 }

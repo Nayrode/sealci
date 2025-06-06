@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use std::cmp::Ordering;
 
 /// Top secret algorithm used to mathematically compute the freeness score of an Agent. Do not leak!
@@ -44,12 +46,12 @@ impl Agent {
     }
 
     /// Returns the Agent's IP address in the format "host:port"
-    /// If the hostname is empty, returns "unknown:unknown"
-    pub(crate) fn get_ip_address(&self) -> String {
+    /// If the hostname is empty, returns an error.
+    pub(crate) fn get_ip_address(&self) -> Result<String, Error> {
         if self.hostname.get_host().is_empty() {
-            return String::from("unknown:unknown");
+            return Err(Error::InvalidAgentHostError(String::from("Agent hostname is empty. Cannot resolve IP address.")));
         }
-        format!("{}:{}", self.hostname.get_host(), self.hostname.get_port())
+        Ok(format!("{}:{}", self.hostname.get_host(), self.hostname.get_port()))
     }
 }
 
