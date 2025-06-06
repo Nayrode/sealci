@@ -12,7 +12,7 @@ Place yourself in the microservice root directory (`sealci/scheduler/`)
 Starting the Scheduler server
 
 ```bash
-cargo run --bin server
+cargo run
 ```
 
 With 'debug' logging level

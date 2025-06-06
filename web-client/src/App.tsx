@@ -1,15 +1,17 @@
-import { Outlet } from "react-router-dom";
-import Menu from "./components/menu";
+import { Outlet } from 'react-router-dom'
+import { Header } from './components/header'
+import { PipelineProvider } from './contexts/pipeline-context'
+import { MonitorProvider } from './contexts/monitor-context'
 
 function App() {
   return (
-    <>
-      <Menu />
-      <div className="mx-[30px] mt-8">
+    <MonitorProvider>
+      <PipelineProvider>
+        <Header />
         <Outlet />
-      </div>
-    </>
-  );
+      </PipelineProvider>
+    </MonitorProvider>
+  )
 }
 
-export default App;
+export default App

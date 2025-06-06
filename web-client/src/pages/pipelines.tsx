@@ -1,43 +1,82 @@
-import { usePipelines } from "@/queries/pipelines.queries";
-import { PipelineCard } from "../components/pipeline";
-import { useEffect } from "react";
+import { useEffect, useState } from "react"
+import { PipelineCard } from "@/components/pipeline-card"
+import { usePipelineContext } from "@/contexts/pipeline-context"
+import { Skeleton } from "@/components/ui/skeleton"
+import ReloadButton from "@/components/reload-button"
+import { motion, AnimatePresence } from "framer-motion"
+
+import LoadingWrapper from "@/components/loading-wrapper"
 
 export default function PipelinesPage() {
-  const { data: pipelines, refetch } = usePipelines(false);
+  const { pipelines, isLoading, reloadPipelines } = usePipelineContext()
+  const [showSkeleton, setShowSkeleton] = useState(true)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      console.log("fetching pipelines");
-      refetch();
-    }, 5000);
+    const timeout = setTimeout(() => {
+      setShowSkeleton(false)
+    }, 500)
 
-    return () => clearInterval(interval);
-  }, [refetch]);
+    return () => clearTimeout(timeout)
+  }, [])
 
-  if (!pipelines) {
-    return <div>fetching</div>;
-  }
-  return (
-    <div>
-      <h2 className="text-4xl text-primary my-6 font-serif">All pipelines</h2>
-      <div className="grid-cols-2 grid gap-4">
-        {pipelines
-          .sort((a, b) => {
-            return a.id > b.id ? -1 : 1;
-          })
-          .map((pipeline) => (
-            <PipelineCard
-              key={pipeline.id}
-              pipeline={{
-                id: pipeline.id,
-                repository_url: pipeline.repository_url,
-                name: pipeline.name,
-                actions: pipeline.actions,
-              }}
-              commit_hash={"eqwc231"}
-            />
-          ))}
+  const isLoadingValue = isLoading.get ?? false
+  const isStillLoading = isLoadingValue || showSkeleton
+
+  const skeletonContent = (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...Array(4)].map((_, i) => (
+            <div key={i} className="w-full border border-gray-200 rounded-xl animate-pulse p-4">
+              <div className="flex flex-col gap-6">
+                <Skeleton className="h-5 w-1/3" />
+                <div className="flex flex-col gap-3">
+                  <Skeleton className="h-5 w-1/2" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-1/3" />
+                </div>
+              </div>
+            </div>
+        ))}
       </div>
-    </div>
-  );
+  )
+
+  const emptyContent = (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-medium mb-2">Aucune pipeline trouvée</h2>
+        <p className="text-muted-foreground">
+          Aucune pipeline n'a été lancée ou les données ne sont pas disponibles.
+        </p>
+      </div>
+  )
+
+  return (
+      <main className="flex-1 container py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Pipelines</h1>
+          <ReloadButton isLoading={isLoadingValue} onClick={reloadPipelines} />
+        </div>
+
+        <LoadingWrapper
+            isLoading={isStillLoading}
+            skeleton={skeletonContent}
+            empty={emptyContent}
+            hasData={!!pipelines && pipelines.length > 0}
+        >
+          <AnimatePresence>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pipelines?.map((pipeline, index) => (
+                  <motion.div
+                      key={pipeline.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                  >
+                    <PipelineCard pipeline={pipeline} />
+                  </motion.div>
+              ))}
+            </div>
+          </AnimatePresence>
+        </LoadingWrapper>
+      </main>
+  )
 }
