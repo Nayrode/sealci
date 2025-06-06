@@ -70,9 +70,6 @@ impl sealcid_traits::App<Config> for App {
 
 impl App {
     pub fn init(config: Config) -> Result<Self, Error> {
-        // Initialize logger.
-        tracing_subscriber::fmt::init();
-
         // Initializes the Agent Pool. They are lost when the Scheduler dies.
         let agent_pool = Arc::new(Mutex::new(AgentPool::new()));
 
