@@ -2,7 +2,7 @@ use reqwest::multipart::{Form, Part};
 use reqwest::{Client, Response};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use tracing::{debug, info};
+use tracing::debug;
 
 pub struct ControllerClient {
     controller_url: String,
@@ -31,7 +31,6 @@ impl ControllerClient {
         // Lire le fichier dans un buffer
         let mut buffer: Vec<u8> = Vec::new();
         file_ref.read_to_end(&mut buffer)?;
-        println!("Debug: Read {} bytes from actions_file", buffer.len());
 
         // Créer une partie de formulaire avec le contenu du fichier
         let file_part: Part = Part::bytes(buffer);
@@ -39,19 +38,18 @@ impl ControllerClient {
         // Créer le formulaire multipart et ajouter les parties
         let form: Form = Form::new()
             .text("repo_url", repo_url.to_string())
-            .part("body", file_part);
+            .part("file", file_part);
 
         debug!("Sending pipeline to controller {}", self.controller_url);
-        println!("Debug: Sending POST to {}/pipeline with repo_url={}", self.controller_url, repo_url);
+
         // Envoyer la requête POST
         let res: Response = client
-            .post(format!("{}/pipeline", self.controller_url.as_str()))
+            .post(format!("{}/pipeline", self.controller_url))
             .multipart(form)
             .send()
             .await?;
 
-        info!("Response: {:?}", res);
-        println!("Debug: Response received from controller");
+        debug!("Response: {:?}", res);
         Ok(())
     }
 }

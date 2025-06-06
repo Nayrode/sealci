@@ -1,4 +1,3 @@
-use tracing::info;
 
 use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation};
 

@@ -1,14 +1,12 @@
+use bollard::Docker;
+use sealcid_traits::status::Status;
 use std::{
     net::{AddrParseError, SocketAddr},
     sync::Arc,
 };
-use std::time::Duration;
-use bollard::Docker;
-use sealcid_traits::status::Status;
 use tokio::{sync::RwLock, task};
-use tokio::time::sleep;
 use tonic::transport::Server;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     brokers::state_broker::StateBroker,
@@ -82,7 +80,7 @@ impl App {
         let action_service = ActionService::new(docker, state_broker.clone());
         let actions = ActionsLauncher { action_service };
         let action_service_grpc = ActionServiceServer::new(actions);
-        
+
         Ok(Self {
             action_service_grpc,
             config,

@@ -1,4 +1,3 @@
-use miette::Report;
 use std::{fs::File, io::Read, path::PathBuf};
 
 use crate::{
