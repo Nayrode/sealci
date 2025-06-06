@@ -7,7 +7,6 @@ use sealci_scheduler::config::Config as SchedulerConfig;
 use crate::{
     common::{
         error::Error,
-        mutation::Apply,
         proto::{
             AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
             SchedulerMutation, daemon_server::Daemon as DaemonGrpc,

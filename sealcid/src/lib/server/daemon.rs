@@ -9,7 +9,7 @@ use crate::{
     common::{
         error::Error,
         mutation::{
-            Apply, ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
+            ControllerMutation, ReleaseAgentMutation, SchedulerMutation,
         },
         service_enum::Services,
     },
