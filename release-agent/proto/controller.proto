@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package releaseagent;
+
+message CreateReleaseRequest {
+  string repo_url = 1;
+  string revision = 2;
+}
+
+enum CreateReleaseStatus {
+  SUCCESS = 0;
+  FAILURE = 1;
+}
+
+message CreateReleaseResponse {
+  CreateReleaseStatus status = 1;
+  PublicKey public_key = 2;
+  string release_id = 3;
+}
+
+message PublicKey {
+  string fingerprint = 1;
+  string key_data = 2;
+}
+
+message RevokePGPKeyRequest {
+  string fingerprint = 1;
+}
+
+message Empty { string dummy = 1; }
+
+service ReleaseAgent {
+  rpc CreateRelease(CreateReleaseRequest) returns (CreateReleaseResponse);
+  rpc RevokePGPKey(RevokePGPKeyRequest) returns (CreateReleaseResponse);
+  rpc GetRootPublicKey(Empty) returns (PublicKey);
+}
