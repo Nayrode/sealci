@@ -111,7 +111,6 @@ impl Update<SchedulerMutation> for GlobalConfig {
 
 impl Into<agent::config::Config> for GlobalConfig {
     fn into(self) -> agent::config::Config {
-        println!("{}:{}", self.agent_host, self.agent_port);
         agent::config::Config {
             shost: self.scheduler_host + ":" + &self.scheduler_port,
             ahost: self.agent_host,

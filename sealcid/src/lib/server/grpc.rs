@@ -4,7 +4,7 @@ use controller::config::Config as ControllerConfig;
 use monitor::config::Config as MonitorConfig;
 use sealci_scheduler::config::Config as SchedulerConfig;
 use tonic::{Request, Response, Status, async_trait};
-use tracing::error;
+use tracing::{debug, error};
 use sealcid_traits::App;
 use crate::server::config::Update;
 use crate::{
@@ -23,12 +23,23 @@ use crate::common::proto::StatusResponse;
 impl DaemonGrpc for Daemon {
     async fn mutate_agent(&self, request: Request<AgentMutation>) -> Result<Response<()>, Status> {
         let new_config = request.into_inner();
-        if Some(false) == new_config.toggle_agent {
-            self.agent
-                .disable()
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
-            return Ok(Response::new(()));
+        match new_config.toggle_agent {
+            Some(true) => {
+                self.agent
+                    .enable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::ToggleAgentError(e)))?;
+            }
+            Some(false) => {
+                // If toggle_agent is false, we disable the agent
+                self.agent
+                    .disable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::ToggleAgentError(e)))?;
+            }
+            None => {
+                // If toggle_agent is None, we do nothing
+            }
         }
         self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
@@ -52,16 +63,26 @@ impl DaemonGrpc for Daemon {
         request: Request<SchedulerMutation>,
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
-        if Some(false) == new_config.toggle_scheduler {
-            self.scheduler
-                .disable()
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
-            return Ok(Response::new(()));
+        match new_config.toggle_scheduler {
+            Some(true) => {
+                self.scheduler
+                    .enable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+            }
+            Some(false) => {
+                // If toggle_scheduler is false, we disable the scheduler
+                self.scheduler
+                    .disable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+            }
+            None => {
+                // If toggle_scheduler is None, we do nothing
+            }
         }
         self.global_config.write().await.update(new_config);
         let global_config = self.global_config.read().await;
-        println!("Acquired read lock on global_config");
         let scheduler_config: SchedulerConfig = global_config.to_owned().into();
         self.scheduler
             .restart_with_config(scheduler_config)
@@ -86,13 +107,28 @@ impl DaemonGrpc for Daemon {
         request: Request<MonitorMutation>,
     ) -> std::result::Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
-        if Some(false) == new_config.toggle_monitor {
-            self.monitor
-                .disable()
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
-            return Ok(Response::new(()));
+        match new_config.toggle_monitor {
+            Some(true) => {
+                debug!("toggle_monitor: Some(true) - enabling monitor");
+                self.monitor
+                    .enable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::ToggleMonitorError(e)))?;
+            }
+            None => {
+                debug!("toggle_monitor: None - doing nothing");
+                // If toggle_monitor is None, we do nothing
+            }
+            Some(false) => {
+                debug!("toggle_monitor: Some(false) - disabling monitor");
+                // If toggle_monitor is false, we disable the monitor
+                self.monitor
+                    .disable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::ToggleMonitorError(e)))?;
+            }
         }
+
         self.global_config.write().await.update(new_config);
         let monitor_config: MonitorConfig = self.global_config.read().await.to_owned().into();
 
@@ -108,13 +144,24 @@ impl DaemonGrpc for Daemon {
         request: Request<ControllerMutation>,
     ) -> Result<Response<()>, tonic::Status> {
         let new_config = request.into_inner();
-        if Some(false) == new_config.toggle_controller {
-            self.controller
-                .disable()
-                .await
-                .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
-            return Ok(Response::new(()));
+        match new_config.toggle_controller {
+            Some(true) => {
+
+                self.controller
+                    .enable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
+            }
+            Some(false) => {
+                // If toggle_controller is false, we disable the controller
+                self.controller
+                    .disable()
+                    .await
+                    .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
+            }
+            None => {}
         }
+
         let mut global_config = self.global_config.write().await;
         global_config.update(new_config);
         let controller_config: ControllerConfig = global_config.to_owned().into();
@@ -129,7 +176,7 @@ impl DaemonGrpc for Daemon {
             .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
         Ok(Response::new(()))
     }
-    
+
     async fn status(
         &self,
         request: Request<StatusRequest>,
@@ -145,10 +192,10 @@ impl DaemonGrpc for Daemon {
             status.push(ServiceStatusMessage { service: Services::Controller.into(), status: controller_status.into() });
             status.push(ServiceStatusMessage { service: Services::Monitor.into(), status: monitor_status.into() });
             status.push(ServiceStatusMessage { service: Services::Scheduler.into(), status: scheduler_status.into() });
-            
+
             return Ok(Response::new(StatusResponse { statuses: status }));
         }
-        match Services::try_from(service.status_type.expect("Should not break since it is checked above")) { 
+        match Services::try_from(service.status_type.expect("Should not break since it is checked above")) {
             Ok(Services::Agent) => {
                 let agent_status = self.agent.app.read().await.status().await;
                 status.push(ServiceStatusMessage { service: Services::Agent.into(), status: agent_status.into() });
