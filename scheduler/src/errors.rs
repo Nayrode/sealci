@@ -6,12 +6,8 @@ pub enum Error {
     GrpcServerError(tonic::Status),
     GrpcClientError(tonic::Status),
     GrpcRequestError(tonic::Status),
-
     AddrParseError(std::net::AddrParseError),
-
     InvalidAgentHostError(String),
-
-    InvalidUriError(http::uri::InvalidUri),
 
     OtherError(String),
 }
@@ -23,6 +19,7 @@ impl From<Error> for tonic::Status {
             Error::GrpcSetupError(status) => status,
             Error::GrpcServerError(status) => status,
             Error::GrpcClientError(status) => status,
+
             Error::OtherError(msg) => tonic::Status::internal(msg),
             _ => tonic::Status::unknown("An unknown error occurred"),
         }
@@ -36,12 +33,8 @@ impl fmt::Display for Error {
             Error::GrpcServerError(status) => write!(f, "GrpcServerError: {}", status.message()),
             Error::GrpcClientError(status) => write!(f, "GrpcClientError: {}", status.message()),
             Error::GrpcRequestError(status) => write!(f, "GrpcRequestError: {}", status.message()),
-
             Error::AddrParseError(err) => write!(f, "AddrParseError: {}", err),
-
             Error::InvalidAgentHostError(msg) => write!(f, "InvalidAgentHostError: {}", msg),
-
-            Error::InvalidUriError(err) => write!(f, "InvalidUriError: {}", err),
 
             Error::OtherError(msg) => write!(f, "OtherError: {}", msg),
         }
