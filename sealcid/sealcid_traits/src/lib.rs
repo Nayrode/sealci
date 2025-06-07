@@ -1,7 +1,8 @@
 use std::fmt::Display;
-
-use crate::status::Status;
-pub mod status;
+pub mod proto {
+    tonic::include_proto!("sealcid");
+}
+// pub mod status;
 
 pub trait App<Config: Display>: Sized {
     type Error: Display;
@@ -22,7 +23,7 @@ pub trait App<Config: Display>: Sized {
     fn configuration(&self) -> impl Future<Output = Result<impl Display, Self::Error>>;
 
     /// Returns the current status of the application.
-    fn status(&self) -> impl Future<Output = Status>;
+    fn status(&self) -> impl Future<Output = proto::ServiceStatus>;
 
     fn name(&self) -> String;
 }

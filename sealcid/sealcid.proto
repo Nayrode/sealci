@@ -11,6 +11,7 @@ service Daemon {
     rpc MutateScheduler(SchedulerMutation) returns (google.protobuf.Empty);
     rpc MutateMonitor(MonitorMutation) returns (google.protobuf.Empty);
     rpc MutateController(ControllerMutation) returns (google.protobuf.Empty);
+    rpc Status(StatusRequest) returns (StatusResponse);
 }
 
 // AgentMutation allows you to solve problems related to agent configuration.
@@ -53,4 +54,32 @@ message ReleaseAgentMutation {
   optional string bucket_access_key = 8; // optional
   optional string bucket_secret_key = 9; // optional
   optional string bucket_name = 10; // optional
+}
+
+enum Services {
+  AGENT = 0;
+  SCHEDULER = 1;
+  MONITOR = 2;
+  CONTROLLER = 3;
+  RELEASE_AGENT = 4;
+}
+
+message StatusRequest {
+  optional Services status_type = 1;
+}
+
+enum ServiceStatus {
+  RUNNING = 0; // Default value, indicates unknown status
+  STOPPED = 1; // Indicates the service is active
+  BOOTING = 2; // Indicates the service is inactive
+  ERROR = 3; // Indicates an error state in the service
+}
+
+message ServiceStatusMessage {
+  Services service = 1; // The service type
+  ServiceStatus status = 2; // The current status of the service
+}
+
+message StatusResponse {
+  repeated ServiceStatusMessage statuses = 1;
 }

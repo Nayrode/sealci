@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use actix_cors::Cors;
 
 use tracing::info;
-use sealcid_traits::status::Status;
+use sealcid_traits::proto::ServiceStatus as Status;
 use crate::{
     config::Config,
     error::Error,

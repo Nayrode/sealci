@@ -31,4 +31,8 @@ pub enum ClientError {
     #[error("gRPC transport error: {0}")]
     #[diagnostic(code(client_error::grpc))]
     GrpcError(tonic::transport::Error),
+
+    #[error("Status error: {0}")]
+    #[diagnostic(code(client_error::grpc))]
+    StatusError(Status),
 }

@@ -1,5 +1,5 @@
 use bollard::Docker;
-use sealcid_traits::status::Status;
+use sealcid_traits::proto::ServiceStatus as Status;
 use std::{
     net::{AddrParseError, SocketAddr},
     sync::Arc,

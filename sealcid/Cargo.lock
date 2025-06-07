@@ -3369,6 +3369,12 @@ dependencies = [
 [[package]]
 name = "sealcid_traits"
 version = "0.1.0"
+dependencies = [
+ "prost",
+ "prost-build",
+ "tonic 0.13.1",
+ "tonic-build 0.13.1",
+]
 
 [[package]]
 name = "security-framework"
