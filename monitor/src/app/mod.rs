@@ -59,14 +59,19 @@ impl sealcid_traits::App<Config> for App {
         let handle = app_process.write().await.pop();
         if let Some(handle) = handle {
             if handle.is_finished() {
-                println!("Service is already finished.");
+                info!("Service is already finished.");
             } else {
-                self.server_handle.lock().await.take().unwrap().stop(false).await;
+                if let Some(server_handle) = self.server_handle.lock().await.as_ref() {
+                    // Attempt to stop the server gracefully
+                    server_handle.stop(false).await;
+                } else {
+                    info!("No server handle available to stop.");
+                }
                 handle.abort();
-                println!("Service abort requested.");
+                info!("Service abort requested.");
             }
         } else {
-            println!("No service to stop.");
+            info!("No service to stop.");
         }
         Ok(())
     }
