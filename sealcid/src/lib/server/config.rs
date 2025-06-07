@@ -1,4 +1,3 @@
-
 use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation};
 
 pub trait Update<Mutation> {
@@ -112,9 +111,10 @@ impl Update<SchedulerMutation> for GlobalConfig {
 
 impl Into<agent::config::Config> for GlobalConfig {
     fn into(self) -> agent::config::Config {
+        println!("{}:{}", self.agent_host, self.agent_port);
         agent::config::Config {
             shost: self.scheduler_host + ":" + &self.scheduler_port,
-            ahost: "0.0.0.0".to_string(),
+            ahost: self.agent_host,
             port: self.agent_port,
         }
     }

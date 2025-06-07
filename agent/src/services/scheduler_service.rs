@@ -55,11 +55,10 @@ impl SchedulerService {
                 }
             }
         };
-        let agent_advertise_url = String::from(agent_host);
         Ok(SchedulerService {
             scheduler_agent_client,
             health_service,
-            agent_advertise_url,
+            agent_advertise_url: agent_host,
             port,
             agent_id: None,
         })

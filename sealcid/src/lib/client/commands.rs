@@ -53,7 +53,7 @@ pub enum Commands {
     /// Run the monitor service
     Monitor {
         /// Port for the monitor
-        #[arg(long, default_value = "4444")]
+        #[arg(long)]
         monitor_port: Option<String>,
         /// Toggle the monitor service
         #[command(subcommand)]
@@ -62,10 +62,10 @@ pub enum Commands {
     /// Run the controller service
     Controller {
         /// Host for the controller (optional)
-        #[arg(long, default_value = "http://localhost")]
+        #[arg(long)]
         controller_host: Option<String>,
         /// Port for the controller
-        #[arg(long, default_value = "4445")]
+        #[arg(long)]
         controller_port: Option<String>,
         /// Database URL for the controller
         #[arg(long)]
@@ -77,10 +77,10 @@ pub enum Commands {
     /// Run the release agent service
     ReleaseAgent {
         /// Host for the release agent (optional)
-        #[arg(long, default_value = "http://localhost")]
+        #[arg(long)]
         release_agent_host: Option<String>,
         /// Port for the release agent
-        #[arg(long, default_value = "4446")]
+        #[arg(long)]
         release_agent_port: Option<String>,
         /// Passphrase for the release agent
         #[arg(long)]
@@ -110,10 +110,10 @@ pub enum Commands {
     /// Run the scheduler service
     Scheduler {
         /// Host for the scheduler (optional)
-        #[arg(long, default_value = "http://localhost")]
+        #[arg(long)]
         scheduler_host: Option<String>,
         /// Port for the scheduler
-        #[arg(long, default_value = "4447")]
+        #[arg(long)]
         scheduler_port: Option<String>,
         /// Toggle the scheduler service
         #[command(subcommand)]
@@ -122,10 +122,10 @@ pub enum Commands {
     /// Run the agent service
     Agent {
         /// Host for the agent (optional)
-        #[arg(long, default_value = "http://localhost")]
+        #[arg(long)]
         agent_host: Option<String>,
         /// Port for the agent
-        #[arg(long, default_value = "4448")]
+        #[arg(long)]
         agent_port: Option<u32>,
         /// Toggle the agent service
         #[command(subcommand)]

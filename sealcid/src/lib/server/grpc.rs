@@ -76,14 +76,6 @@ impl DaemonGrpc for Daemon {
                 error!("Failed to restart controller: {:?}", e);
                 Status::failed_precondition(Error::RestartControllerError(e))
             })?;
-        let agent_config: AgentConfig = global_config.to_owned().into();
-        self.agent
-            .restart_with_config(agent_config)
-            .await
-            .map_err(|e| {
-                error!("Failed to restart agent: {:?}", e);
-                Status::failed_precondition(Error::RestartAgentError(e))
-            })?;
         Ok(Response::new(()))
     }
 
