@@ -1,14 +1,15 @@
 use std::{fs::File, io::Read, path::PathBuf};
-
+use std::fmt::{Display, Formatter};
 use crate::{
     client::{config::ClientConfig, error::ClientError},
     common::proto::{
         AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
-        SchedulerMutation, daemon_client::DaemonClient,
+        SchedulerMutation, daemon_client::DaemonClient, Services, ServiceStatus
     },
 };
 use clap::{Parser, Subcommand};
 use tonic::{Request, transport::Channel};
+use crate::common::proto::{StatusRequest, StatusResponse};
 
 const SEAL_CONFIG_DEFAULT: &str = ".seal/config";
 
@@ -24,6 +25,7 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum Toggle {
+    Status,
     Start,
     Stop,
 }
@@ -43,12 +45,39 @@ impl PartialEq for Toggle {
     }
 }
 
+impl Display for StatusResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for status in &self.statuses {
+            let service_name = match status.service() {
+                Services::Agent => "Agent",
+                Services::Scheduler => "Scheduler",
+                Services::Monitor => "Monitor",
+                Services::Controller => "Controller",
+                Services::ReleaseAgent => "Release Agent",
+            };
+
+            let status_str = match status.status() {
+                ServiceStatus::Running => "RUNNING",
+                ServiceStatus::Stopped => "STOPPED",
+                ServiceStatus::Booting => "BOOTING",
+                ServiceStatus::Error => "ERROR",
+            };
+
+            writeln!(f, "{}: {}", service_name, status_str)?;
+        }
+        Ok(())
+    }
+}
+
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum Commands {
     /// Start the global configuration
     Start,
     /// Stop the global configuration
     Stop,
+    /// Get all services status
+    Status,
 
     /// Run the monitor service
     Monitor {
@@ -173,6 +202,15 @@ impl Cli {
     pub async fn trigger(&self) -> Result<(), ClientError> {
         let mut client = self.grpc_client().await?;
         match &self.command {
+            Commands::Status => {
+                let request = Request::new(StatusRequest{ status_type: None });
+                let response = client
+                    .status(request)
+                    .await
+                    .map_err(ClientError::StatusError)?;
+                println!("{}", response.into_inner());
+                return Ok(());
+            }
             Commands::Start => {
                 println!("Starting configuration...");
                 // Add logic to start global configuration here
@@ -187,6 +225,15 @@ impl Cli {
                 monitor_port,
                 toggle,
             } => {
+                if let Some(Toggle::Status) = toggle {
+                    let request = Request::new(StatusRequest{ status_type: Some(Services::Monitor.into()) });
+                    let response = client
+                        .status(request)
+                        .await
+                        .map_err(ClientError::MonitorError)?;
+                    println!("Monitor service status: {}", response.into_inner());
+                    return Ok(());
+                }
                 let toggle_bool = toggle.map(|f| f.as_bool());
                 let mutation = MonitorMutation {
                     monitor_port: monitor_port.to_owned(),
@@ -208,6 +255,15 @@ impl Cli {
                 database_url,
                 toggle,
             } => {
+                if let Some(Toggle::Status) = toggle {
+                    let request = Request::new(StatusRequest{ status_type: Some(Services::Controller.into()) });
+                    let response = client
+                        .status(request)
+                        .await
+                        .map_err(ClientError::ControllerError)?;
+                    println!("{}", response.into_inner());
+                    return Ok(());
+                }
                 let toggle_bool = toggle.map(|f| f.as_bool());
                 let mutation = ControllerMutation {
                     controller_host: controller_host.to_owned(),
@@ -237,6 +293,15 @@ impl Cli {
                 bucket_name,
                 toggle,
             } => {
+                if let Some(Toggle::Status) = toggle {
+                    let request = Request::new(StatusRequest{ status_type: Some(Services::ReleaseAgent.into()) });
+                    let response = client
+                        .status(request)
+                        .await
+                        .map_err(ClientError::ReleaseAgentError)?;
+                    println!("{}", response.into_inner());
+                    return Ok(());
+                }
                 let toggle_bool = toggle.map(|f| f.as_bool());
                 let mutation = ReleaseAgentMutation {
                     release_agent_host: release_agent_host.to_owned(),
@@ -265,6 +330,15 @@ impl Cli {
                 scheduler_port,
                 toggle,
             } => {
+                if let Some(Toggle::Status) = toggle {
+                    let request = Request::new(StatusRequest{ status_type: Some(Services::Scheduler.into()) });
+                    let response = client
+                        .status(request)
+                        .await
+                        .map_err(ClientError::SchedulerError)?;
+                    println!("{}", response.into_inner());
+                    return Ok(());
+                }
                 let toggle_bool = toggle.map(|f| f.as_bool());
                 let mutation = SchedulerMutation {
                     scheduler_host: scheduler_host.to_owned(),
@@ -286,6 +360,15 @@ impl Cli {
                 agent_port,
                 toggle,
             } => {
+                if let Some(Toggle::Status) = toggle {
+                    let request = Request::new(StatusRequest{ status_type: Some(Services::Agent.into()) });
+                    let response = client
+                        .status(request)
+                        .await
+                        .map_err(ClientError::AgentError)?;
+                    println!("{}", response.into_inner());
+                    return Ok(());
+                }
                 let toggle_bool = toggle.map(|f| f.as_bool());
                 let mutation = AgentMutation {
                     agent_host: agent_host.to_owned(),

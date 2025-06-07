@@ -14,7 +14,7 @@ use actix_cors::Cors;
 use actix_web::dev::Server;
 use actix_web::web::Data;
 use actix_web::HttpServer;
-use sealcid_traits::status::Status;
+use sealcid_traits::proto::ServiceStatus as Status;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;

@@ -10,7 +10,7 @@ use crate::{
         scheduler::{agent_server::AgentServer, controller_server::ControllerServer},
     },
 };
-use sealcid_traits::status::Status;
+use sealcid_traits::proto::ServiceStatus as Status;
 use tonic::transport::Server;
 use tracing::info;
 

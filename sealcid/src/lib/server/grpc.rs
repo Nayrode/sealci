@@ -1,21 +1,23 @@
+use std::convert::Infallible;
 use agent::config::Config as AgentConfig;
 use controller::config::Config as ControllerConfig;
 use monitor::config::Config as MonitorConfig;
 use sealci_scheduler::config::Config as SchedulerConfig;
 use tonic::{Request, Response, Status, async_trait};
 use tracing::error;
-
+use sealcid_traits::App;
 use crate::server::config::Update;
 use crate::{
     common::{
         error::Error,
         proto::{
             AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
-            SchedulerMutation, daemon_server::Daemon as DaemonGrpc,
+            SchedulerMutation, daemon_server::Daemon as DaemonGrpc, StatusRequest, Services, ServiceStatusMessage,
         },
     },
     server::daemon::Daemon,
 };
+use crate::common::proto::StatusResponse;
 
 #[async_trait]
 impl DaemonGrpc for Daemon {
@@ -126,5 +128,47 @@ impl DaemonGrpc for Daemon {
             .await
             .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
         Ok(Response::new(()))
+    }
+    
+    async fn status(
+        &self,
+        request: Request<StatusRequest>,
+    ) -> Result<Response<StatusResponse>, tonic::Status> {
+        let service = request.into_inner();
+        let mut status: Vec<ServiceStatusMessage> = Vec::new();
+        if None == service.status_type {
+            let agent_status = self.agent.app.read().await.status().await;
+            let controller_status = self.controller.app.read().await.status().await;
+            let monitor_status = self.monitor.app.read().await.status().await;
+            let scheduler_status = self.scheduler.app.read().await.status().await;
+            status.push(ServiceStatusMessage { service: Services::Agent.into(), status: agent_status.into() });
+            status.push(ServiceStatusMessage { service: Services::Controller.into(), status: controller_status.into() });
+            status.push(ServiceStatusMessage { service: Services::Monitor.into(), status: monitor_status.into() });
+            status.push(ServiceStatusMessage { service: Services::Scheduler.into(), status: scheduler_status.into() });
+            
+            return Ok(Response::new(StatusResponse { statuses: status }));
+        }
+        match Services::try_from(service.status_type.expect("Should not break since it is checked above")) { 
+            Ok(Services::Agent) => {
+                let agent_status = self.agent.app.read().await.status().await;
+                status.push(ServiceStatusMessage { service: Services::Agent.into(), status: agent_status.into() });
+            },
+            Ok(Services::Controller) => {
+                let controller_status = self.controller.app.read().await.status().await;
+                status.push(ServiceStatusMessage { service: Services::Controller.into(), status: controller_status.into() });
+            },
+            Ok(Services::Monitor) => {
+                let monitor_status = self.monitor.app.read().await.status().await;
+                status.push(ServiceStatusMessage { service: Services::Monitor.into(), status: monitor_status.into() });
+            },
+            Ok(Services::Scheduler) => {
+                let scheduler_status = self.scheduler.app.read().await.status().await;
+                status.push(ServiceStatusMessage { service: Services::Scheduler.into(), status: scheduler_status.into() });
+            },
+            _ => {
+                return Err(Status::invalid_argument("Invalid service type specified"));
+            },
+        }
+        Ok(Response::new(StatusResponse{ statuses: status }))
     }
 }

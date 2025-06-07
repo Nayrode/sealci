@@ -3,8 +3,14 @@ name = "sealcid_traits"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
+[build-dependencies]
+prost-build = "0.13.5"
+tonic-build = "0.13.1"
 
 [lib]
 name = "sealcid_traits"
 path = "src/lib.rs"
+
+[dependencies]
+tonic = "0.13.1"
+prost = "0.13.5"
