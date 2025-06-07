@@ -16,6 +16,7 @@ pub(crate) async fn execution_action(
 
     debug!("[Scheduler]: Attempting to connect to agent at address: {}", agent_address);
 
+    // Build the gRPC channel using the agent's address, parsed to http::uri::Uri as required by tonic.
     let channel = Channel::builder(
         agent_address
             .parse::<http::uri::Uri>()
