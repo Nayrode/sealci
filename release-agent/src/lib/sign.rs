@@ -21,6 +21,8 @@ pub trait ReleaseSigner: Clone + Send + Sync {
         file_path: PathBuf,
     ) -> Result<(core::PublicKey, PathBuf), ReleaseAgentError>;
 
+    fn clean_release(&self, path: PathBuf) -> Result<(), ReleaseAgentError>;
+
     fn get_public_key(&self) -> Result<core::PublicKey, ReleaseAgentError>;
 }
 
@@ -123,6 +125,7 @@ impl ReleaseSigner for SequoiaPGPManager {
         &self,
         file_path: PathBuf,
     ) -> Result<(core::PublicKey, PathBuf), ReleaseAgentError> {
+        info!("Signing release at {}", file_path.display());
         let key_pair = self.key_pair.clone();
         let public_key = self.cert.primary_key().key();
         let fingerprint = public_key.fingerprint().to_string();
@@ -140,8 +143,6 @@ impl ReleaseSigner for SequoiaPGPManager {
             error!("Error creating signature file: {}", e);
             ReleaseAgentError::SigningError
         })?;
-
-        // testing something here
 
         let signature_message = Message::new(signature_file);
         let armored_message = Armorer::new(signature_message)
@@ -207,5 +208,13 @@ impl ReleaseSigner for SequoiaPGPManager {
             key_data: serialized_key,
             fingerprint,
         })
+    }
+
+    fn clean_release(&self, path: PathBuf) -> Result<(), ReleaseAgentError> {
+        std::fs::remove_file(path.clone()).map_err(|e| {
+            error!("Error removing folder: {}, {}", e, path.display());
+            ReleaseAgentError::GitRepositoryNotFound
+        })?;
+        Ok(())
     }
 }

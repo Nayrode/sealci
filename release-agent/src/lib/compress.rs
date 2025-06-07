@@ -1,6 +1,6 @@
 use std::{fs::File, path::PathBuf};
 use tonic::async_trait;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::core::ReleaseAgentError;
 
@@ -9,6 +9,8 @@ pub trait CompressClient: Clone + Send + Sync {
     // path is a string containing the path to the folder that contains the codebase to be compressed
     // the File object returned contains the compressed codebase
     async fn compress(&self, path: PathBuf) -> Result<(File, PathBuf), ReleaseAgentError>;
+
+    fn clean_compressed(&self, path: PathBuf) -> Result<(), ReleaseAgentError>;
 }
 
 #[derive(Debug, Clone)]
@@ -38,5 +40,13 @@ impl CompressClient for Flate2Client {
             .map_err(|_| ReleaseAgentError::CompressionError)?;
         info!("Compressed codebase to {}", file_name.display());
         Ok((file, file_name))
+    }
+
+    fn clean_compressed(&self, path: PathBuf) -> Result<(), ReleaseAgentError> {
+        std::fs::remove_file(path).map_err(|e| {
+            error!("Error removing file: {}", e);
+            ReleaseAgentError::CompressionError
+        })?;
+        Ok(())
     }
 }
