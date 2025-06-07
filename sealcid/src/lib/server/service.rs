@@ -1,6 +1,6 @@
 use std::{fmt::Display, sync::Arc};
 
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 pub struct SealedService<App, Config>
 where
@@ -21,15 +21,14 @@ where
         &self,
         config: impl Into<Config> + Clone,
     ) -> Result<(), App::Error> {
-        let mut app_guard = self.app.write().await;
-        if let Err(_) = app_guard.stop().await {
-            tracing::error!("Failed to stop the app {}", app_guard.name());
+        if let Err(_) = self.app.read().await.stop().await {
+            tracing::error!("Failed to stop the app {}", self.app.read().await.name());
         }
-        *app_guard = App::configure(config.clone().into()).await?;
+        *self.app.write().await = App::configure(config.clone().into()).await?;
         *self.config.write().await = config.clone().into();
         let enabled = *self.enabled.read().await;
         if enabled {
-            app_guard.run().await?;
+            self.app.read().await.run().await?;
         }
         Ok(())
     }
@@ -66,19 +65,11 @@ where
     }
 
     pub async fn enable(&self) -> Result<(), App::Error> {
-        let app = &self.app.read().await;
-        if let Err(_) = app.run().await {
-            tracing::error!("Failed to start the app {}", app.name());
-        }
         *self.enabled.write().await = true;
         Ok(())
     }
 
     pub async fn disable(&self) -> Result<(), App::Error> {
-        let app = &self.app.read().await;
-        if let Err(_) = app.stop().await {
-            tracing::error!("Failed to stop the app {}", app.name());
-        }
         *self.enabled.write().await = false;
         Ok(())
     }

@@ -4,12 +4,12 @@ use crate::{
     client::{config::ClientConfig, error::ClientError},
     common::proto::{
         AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
-        SchedulerMutation, daemon_client::DaemonClient, Services, ServiceStatus
+        SchedulerMutation, daemon_client::DaemonClient, Services, ServiceStatus,
+        StatusRequest, StatusResponse,
     },
 };
 use clap::{Parser, Subcommand};
 use tonic::{Request, transport::Channel};
-use crate::common::proto::{StatusRequest, StatusResponse};
 
 const SEAL_CONFIG_DEFAULT: &str = ".seal/config";
 

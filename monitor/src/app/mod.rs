@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use actix_web::{web::Data, App as ActixApp, HttpServer};
 
-use actix_web::dev::Server;
-use tokio::sync::RwLock;
+use actix_web::dev::{Server, ServerHandle};
+use tokio::sync::{Mutex, RwLock};
 
 use actix_cors::Cors;
 
@@ -24,6 +24,7 @@ use crate::{
 pub struct App {
     config: Arc<Config>,
     app_process: Arc<RwLock<Vec<tokio::task::JoinHandle<Result<(), Error>>>>>,
+    server_handle: Arc<Mutex<Option<ServerHandle>>>,
 }
 
 impl sealcid_traits::App<Config> for App {
@@ -32,13 +33,20 @@ impl sealcid_traits::App<Config> for App {
     async fn run(&self) -> Result<(), Error> {
             let app_process = self.app_process.clone();
             let mut process = app_process.write().await;
-            let this = self.clone();
-            process.insert(0, tokio::spawn(async move {
+            let mut this = self.clone();
+            if !process.is_empty() {
+                info!("Monitor service is already running.");
+                return Ok(());
+            }
+            process.push(tokio::spawn(async move {
+                this.start().await?.await.expect("should be launched successfully");
                 if let Err(e) = this.start().await {
                     tracing::error!("Failed to start Monitor service: {}", e);
                 }
+                tracing::info!("Monitor service stopped.");
                 Ok(())
             }));
+            info!("Monitor service started successfully.{}", process.len());
             Ok(())
         }
 
@@ -48,12 +56,17 @@ impl sealcid_traits::App<Config> for App {
 
     async fn stop(&self) -> Result<(), Error> {
         let app_process = self.app_process.clone();
-        let handle = app_process.write().await.pop().expect("No process to stop");
-        if handle.is_finished() {
-            println!("Service is already finished.");
+        let handle = app_process.write().await.pop();
+        if let Some(handle) = handle {
+            if handle.is_finished() {
+                println!("Service is already finished.");
+            } else {
+                self.server_handle.lock().await.take().unwrap().stop(false).await;
+                handle.abort();
+                println!("Service abort requested.");
+            }
         } else {
-            handle.abort();
-            println!("Service abort requested.");
+            println!("No service to stop.");
         }
         Ok(())
     }
@@ -87,6 +100,7 @@ impl App {
             Ok(App {
                 config: Arc::new(config),
                 app_process: Arc::new(RwLock::new(Vec::new())),
+                server_handle: Arc::new(Mutex::new(None)),
             })
         }
 
@@ -125,6 +139,8 @@ impl App {
         .bind(("0.0.0.0", self.config.clone().port))
         .map_err(Error::ServerError)?
         .run();
+
+        *self.server_handle.lock().await = Some(server.handle());
         Ok(server)
     }
 }
