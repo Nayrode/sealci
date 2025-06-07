@@ -3,7 +3,7 @@ use crate::errors::Error;
 use crate::logic::agent_pool_logic::Agent as PoolAgent;
 use crate::logic::agent_pool_logic::Hostname;
 use crate::logic::agent_pool_logic::{AgentPool, compute_score};
-use tracing::{debug, error};
+use tracing::{info, debug, error};
 
 use crate::proto::scheduler as proto;
 use proto::agent_server::Agent;
@@ -71,12 +71,17 @@ impl Agent for AgentService {
         let new_hostname = Hostname::new(host, port);
 
         // Create a new Agent and add it to the Pool (it gets sorted)
-        let new_agent = PoolAgent::new(id, new_hostname, score);
+        let new_agent = PoolAgent::new(id, new_hostname.clone(), score);
 
         // Response is the newly created Agent's ID.
         let response = proto::RegisterAgentResponse {
             id: new_agent.get_id(),
         };
+
+        info!(
+            "[Scheduler]: Agent {}:{} registered successfully with ID: {}",
+            new_hostname.get_host(), new_hostname.get_port(), response.id
+        );
 
         pool.push(new_agent);
 
@@ -109,7 +114,7 @@ impl Agent for AgentService {
                 }
             };
 
-            debug!(
+            info!(
                 "[Scheduler]: Received health status from agent {}: CPU: {}, Memory: {}",
                 status.agent_id, health.cpu_avail, health.memory_avail
             );
