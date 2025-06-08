@@ -14,6 +14,7 @@ pub fn create_initramfs(
     command: String,
     working_dir: PathBuf,
     transfer_files: Vec<String>, // This is the directory where the init script will be executed
+    nameserver: Option<String>,
 ) -> Result<(), DumpletError> {
     let init_path = rootfs_path.join("init");
     if !transfer_files.is_empty() {
@@ -58,6 +59,16 @@ pub fn create_initramfs(
     let mut perms = fs::metadata(&init_path)?.permissions();
     perms.set_mode(0o755);
     fs::set_permissions(&init_path, perms)?;
+
+    let mut resolv_conf = File::create(rootfs_path.join("etc/resolv.conf"))?;
+    match nameserver {
+        Some(nameserver) => {
+            resolv_conf.write_all(format!("nameserver {}\n", nameserver).as_bytes())?;
+        }
+        None => {
+            resolv_conf.write_all(b"nameserver 8.8.8.8\n")?;
+        }
+    }
 
     let find = Command::new("find")
         .arg(".")

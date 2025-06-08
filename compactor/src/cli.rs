@@ -30,4 +30,7 @@ pub struct Cli {
 
     #[arg(long, default_value = "4", help = "Number of virtual CPUs")]
     pub num_vcpus: u8,
+
+    #[arg(long, help = "Nameserver to use for DNS resolution")]
+    pub dns: Option<String>,
 }
