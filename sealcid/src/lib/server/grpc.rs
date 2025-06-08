@@ -218,4 +218,40 @@ impl DaemonGrpc for Daemon {
         }
         Ok(Response::new(StatusResponse{ statuses: status }))
     }
+
+    async fn start(&self, request: Request<()>) -> Result<Response<()>, Status> {
+        debug!("Starting Daemon gRPC service");
+        let _ = request.into_inner(); // We don't use the request, but we need to consume it
+        let agent_config: AgentConfig = self.global_config.read().await.to_owned().into();
+        self.agent
+            .restart_with_config(agent_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
+        let controller_config: ControllerConfig = self.global_config.read().await.to_owned().into();
+        self.controller
+            .restart_with_config(controller_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
+        let monitor_config: MonitorConfig = self.global_config.read().await.to_owned().into();
+        self.monitor
+            .restart_with_config(monitor_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
+        let scheduler_config: SchedulerConfig = self.global_config.read().await.to_owned().into();
+        self.scheduler
+            .restart_with_config(scheduler_config)
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+        Ok(Response::new(()))
+    }
+    async fn stop(&self, request: Request<()>) -> Result<Response<()>, Status> {
+        debug!("Stopping Daemon gRPC service");
+        let _ = request.into_inner(); // We don't use the request, but we need to consume it
+        self.controller.app.write().await.stop().await.map_err(|e| Status::failed_precondition(Error::RestartControllerError(e)))?;
+        self.monitor.app.write().await.stop().await.map_err(|e| Status::failed_precondition(Error::RestartMonitorError(e)))?;
+        self.scheduler.app.write().await.stop().await.map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+        self.agent.app.write().await.stop().await.map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
+        debug!("All services stopped successfully");
+        Ok(Response::new(()))
+    }
 }

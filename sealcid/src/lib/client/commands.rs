@@ -213,13 +213,23 @@ impl Cli {
             }
             Commands::Start => {
                 println!("Starting configuration...");
-                // Add logic to start global configuration here
+                let request = Request::new(());
+                let _ = client
+                    .start(request)
+                    .await
+                    .map_err(ClientError::StatusError)?;
                 println!("Global configuration started successfully.");
+                return Ok(());
             }
             Commands::Stop => {
                 println!("Stopping global configuration...");
-                // Add logic to stop global configuration here
+                let request = Request::new(());
+                let _ = client
+                    .stop(request)
+                    .await
+                    .map_err(ClientError::StatusError)?;
                 println!("Global configuration stopped successfully.");
+                return Ok(());
             }
             Commands::Monitor {
                 monitor_port,
