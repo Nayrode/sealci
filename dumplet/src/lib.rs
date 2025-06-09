@@ -26,6 +26,7 @@ pub async fn generate_initramfs_bundle(
     output_dir: &str,
     env: Option<Vec<&str>>,
     transfer_files: Vec<String>,
+    nameserver: Option<String>,
 ) -> Result<DumpletBundle, DumpletError> {
     let output_path = Path::new(output_dir);
     fs::create_dir_all(output_path)?;
@@ -46,6 +47,7 @@ pub async fn generate_initramfs_bundle(
         container_cmd,
         working_dir,
         transfer_files,
+        nameserver,
     )?;
 
     Ok(DumpletBundle {
@@ -60,12 +62,13 @@ pub async fn generate_initramfs_image(
     image: &str,
     env: Option<Vec<&str>>,
     transfer_files: Vec<String>,
+    nameserver: Option<String>,
 ) -> Result<File, DumpletError> {
     let temp_dir = tempdir()?;
     let temp_path = temp_dir.path();
 
     let bundle =
-        generate_initramfs_bundle(image, temp_path.to_str().unwrap(), env, transfer_files).await?;
+        generate_initramfs_bundle(image, temp_path.to_str().unwrap(), env, transfer_files, nameserver).await?;
     let file = File::open(&bundle.initramfs_img)?;
 
     println!(

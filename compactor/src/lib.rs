@@ -21,7 +21,7 @@ impl Compactor {
             envs.push(env.as_str());
         }
         let initramfs =
-            dumplet::generate_initramfs_image(&config.image, Some(envs), config.transfer_files)
+            dumplet::generate_initramfs_image(&config.image, Some(envs), config.transfer_files, config.dns)
                 .await
                 .map_err(Error::DumpletError)?;
         let vmm_config = dumper::config::VmmConfig {
