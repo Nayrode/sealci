@@ -60,13 +60,16 @@ pub fn create_initramfs(
     perms.set_mode(0o755);
     fs::set_permissions(&init_path, perms)?;
 
-    let mut resolv_conf = File::create(rootfs_path.join("etc/resolv.conf"))?;
-    match nameserver {
-        Some(nameserver) => {
-            resolv_conf.write_all(format!("nameserver {}\n", nameserver).as_bytes())?;
-        }
-        None => {
-            resolv_conf.write_all(b"nameserver 8.8.8.8\n")?;
+    // check if /etc exists
+    if rootfs_path.join("etc").try_exists()? {
+        let mut resolv_conf = File::create(rootfs_path.join("etc/resolv.conf"))?;
+        match nameserver {
+            Some(nameserver) => {
+                resolv_conf.write_all(format!("nameserver {}\n", nameserver).as_bytes())?;
+            }
+            None => {
+                resolv_conf.write_all(b"nameserver 8.8.8.8\n")?;
+            }
         }
     }
 
