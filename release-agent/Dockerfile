@@ -31,3 +31,4 @@ WORKDIR /opt/sealci-release-agent
 COPY --from=build /bin/sealci-release-agent /opt/sealci-release-agent/sealci-release-agent
 
 # What the container should run when it is started.
+CMD ["/opt/sealci-release-agent/sealci-release-agent"]
