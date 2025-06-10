@@ -11,20 +11,19 @@ The release agent is a microservice that is responsible for creating and publish
 
 ⚠️ Please don't use GPG, you [don't](https://www.youtube.com/watch?v=oZZXipqmSbw&t=1s) [want](https://www.latacora.com/blog/2019/07/16/the-pgp-problem/) [to](https://blog.cryptographyengineering.com/2014/08/13/whats-matter-with-pgp/) [be](https://www.usenix.org/system/files/conference/usenixsecurity18/sec18-poddebniak.pdf) [that](https://words.filippo.io/giving-up-on-long-term-pgp/) [guy.](https://mailarchive.ietf.org/arch/msg/openpgp/tB00vO5r-qneX9wz1xz3netpXVU/)
 
+### Launch the release agent the quick way
+
+```bash
+docker compose --file prod-compose.yml up --build -d
+```
+
+Then go to [http://localhost:9001](http://localhost:9001) and create a new bucket named `sealci`.
+
 ### First launch the bucket
 
 ```bash
 docker compose up -d
 ```
-
-### Generating a signing key pair
-
-```bash
-sq key generate --own-key --name <your-org-name> --email <your-org-email>
-sq key export --cert=<cert-fingerprint> > sealci.key
-```
-
-Now you have a `sealci.key` file that you can use to sign releases.
 
 ### Running the release agent (for development)
 
