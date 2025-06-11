@@ -6,6 +6,7 @@ pub enum Error {
     RestartControllerError(controller::application::AppError),
     RestartMonitorError(monitor::error::Error),
     RestartSchedulerError(sealci_scheduler::errors::Error),
+    RestartReleaseAgentError(compactor::error::Error),
     ToggleAgentError(agent::models::error::Error),
     ToggleControllerError(controller::application::AppError),
     ToggleMonitorError(monitor::error::Error),
@@ -13,6 +14,7 @@ pub enum Error {
     ConfigureAgentError(agent::models::error::Error),
     ConfigureMonitorError(monitor::error::Error),
     ConfigureSchedulerError(sealci_scheduler::errors::Error),
+    ConfigureReleaseAgentError(compactor::error::Error),
     ParseError(AddrParseError),
     StartGrpcError(String),
 }
@@ -24,6 +26,7 @@ impl Into<String> for Error {
             Error::RestartAgentError(e) => format!("Failed to restart agent: {}", e),
             Error::RestartControllerError(e) => format!("Failed to restart controller: {}", e),
             Error::RestartMonitorError(e) => format!("Failed to restart monitor: {}", e),
+            Error::RestartReleaseAgentError(e) => format!("Failed to configure release agent: {}", e),
             Error::ToggleAgentError(e) => format!("Failed to toggle agent: {}", e),
             Error::ToggleControllerError(e) => format!("Failed to toggle controller: {}", e),
             Error::ToggleMonitorError(e) => format!("Failed to toggle monitor: {}", e),
@@ -36,6 +39,9 @@ impl Into<String> for Error {
             }
             Error::ConfigureMonitorError(error) => {
                 format!("Failed to configure monitor: {}", error)
+            }
+            Error::ConfigureReleaseAgentError(e) => {
+                format!("Failed to configure release agent: {}", e)
             }
             Error::ConfigureSchedulerError(_e) => "Failed to configure scheduler".to_string(),
             Error::ParseError(e) => format!("Failed to parse address: {}", e),

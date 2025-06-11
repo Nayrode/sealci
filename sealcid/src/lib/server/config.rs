@@ -1,4 +1,5 @@
-use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation};
+use crate::common::proto::{AgentMutation, ControllerMutation, MonitorMutation, SchedulerMutation, ReleaseAgentMutation};
+use compactor::config::Config as CompactorConfig;
 
 pub trait Update<Mutation> {
     /// Updates the configuration with the given mutation.
@@ -48,12 +49,12 @@ impl Default for GlobalConfig {
             controller_host: "http://0.0.0.0".to_string(),
             controller_port: "4445".to_string(),
             database_url: "postgres://postgres:postgres@0.0.0.0:5432/sealci".to_string(),
-            release_agent_host: "http://localhost".to_string(),
+            release_agent_host: "http://192.168.1.2".to_string(),
             release_agent_port: "4446".to_string(),
             passphrase: "changeme".to_string(),
             secret_key: "secret".to_string(),
             git_path: "/usr/bin/git".to_string(),
-            bucket_addr: "localhost:9000".to_string(),
+            bucket_addr: "192.168.1.1:9000".to_string(),
             bucket_access_key: "minioadmin".to_string(),
             bucket_secret_key: "minioadmin".to_string(),
             bucket_name: "sealci".to_string(),
@@ -64,6 +65,8 @@ impl Default for GlobalConfig {
         }
     }
 }
+
+
 
 impl Update<AgentMutation> for GlobalConfig {
     fn update(&mut self, mutation: AgentMutation) {
@@ -109,6 +112,38 @@ impl Update<SchedulerMutation> for GlobalConfig {
     }
 }
 
+impl Update<ReleaseAgentMutation> for GlobalConfig {
+    fn update(&mut self, mutation: ReleaseAgentMutation) {
+        if let Some(host) = mutation.release_agent_host {
+            self.release_agent_host = host;
+        }
+        if let Some(port) = mutation.release_agent_port {
+            self.release_agent_port = port;
+        }
+        if let Some(passphrase) = mutation.passphrase {
+            self.passphrase = passphrase;
+        }
+        if let Some(secret_key) = mutation.secret_key {
+            self.secret_key = secret_key;
+        }
+        if let Some(git_path) = mutation.git_path {
+            self.git_path = git_path;
+        }
+        if let Some(bucket_addr) = mutation.bucket_addr {
+            self.bucket_addr = bucket_addr;
+        }
+        if let Some(bucket_access_key) = mutation.bucket_access_key {
+            self.bucket_access_key = bucket_access_key;
+        }
+        if let Some(bucket_secret_key) = mutation.bucket_secret_key {
+            self.bucket_secret_key = bucket_secret_key;
+        }
+        if let Some(bucket_name) = mutation.bucket_name {
+            self.bucket_name = bucket_name;
+        }
+    }
+}
+
 impl Into<agent::config::Config> for GlobalConfig {
     fn into(self) -> agent::config::Config {
         agent::config::Config {
@@ -142,6 +177,30 @@ impl Into<sealci_scheduler::config::Config> for GlobalConfig {
     fn into(self) -> sealci_scheduler::config::Config {
         sealci_scheduler::config::Config {
             addr: format!("0.0.0.0:{}", self.scheduler_port),
+        }
+    }
+}
+
+impl Into<compactor::config::Config> for GlobalConfig {
+    fn into(self) -> compactor::config::Config {
+        compactor::config::Config {
+            image: "milou666/release-agent:test".to_string(),
+            tap_interface_name: "tap0".to_string(),
+            interactive: false,
+            env: vec![
+                format!("DEBUG={}", "true"),
+                format!("LOG_LEVEL={}", "info"),
+                format!("CERT_PATH={}", "/tmp"),
+                format!("GIT_PATH={}", self.git_path),
+                format!("BUCKET_ACCESS_KEY={}", self.bucket_access_key),
+                format!("BUCKET_SECRET_KEY={}", self.bucket_secret_key),
+                format!("BUCKET_NAME={}", self.bucket_name),
+                format!("BUCKET_ADDR={}", self.bucket_addr),
+            ],
+            transfer_files: vec![],
+            mem_size_mb: 2048,
+            num_vcpus: 1,
+            dns: None,
         }
     }
 }

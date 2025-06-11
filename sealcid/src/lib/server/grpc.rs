@@ -1,8 +1,10 @@
 use std::convert::Infallible;
+use std::thread;
 use agent::config::Config as AgentConfig;
 use controller::config::Config as ControllerConfig;
 use monitor::config::Config as MonitorConfig;
 use sealci_scheduler::config::Config as SchedulerConfig;
+use compactor::config::Config as ReleaseAgentConfig;
 use tonic::{Request, Response, Status, async_trait};
 use tracing::{debug, error};
 use sealcid_traits::App;
@@ -51,11 +53,27 @@ impl DaemonGrpc for Daemon {
             .map_err(|e| Status::failed_precondition(Error::RestartAgentError(e)))?;
         Ok(Response::new(()))
     }
+    
     async fn mutate_release_agent(
         &self,
         request: Request<ReleaseAgentMutation>,
     ) -> Result<Response<()>, tonic::Status> {
-        todo!()
+        let new_config = request.into_inner();
+        if Some(false) == new_config.toggle_release_agent {
+            self.release_agent
+                .disable()
+                .await
+                .map_err(|e| Status::failed_precondition(Error::RestartReleaseAgentError(e)))?;
+            return Ok(Response::new(()));
+        }
+        let mut global_config = self.global_config.write().await;
+        global_config.update(new_config);
+        let release_agent_config: ReleaseAgentConfig = global_config.to_owned().into();
+        let me = self.clone();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        me.release_agent.restart_with_config(release_agent_config.clone()).await
+            .map_err(|e| Status::failed_precondition(Error::RestartReleaseAgentError(e)))?;
+        Ok(Response::new(()))
     }
 
     async fn mutate_scheduler(

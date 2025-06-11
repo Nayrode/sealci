@@ -4,6 +4,7 @@ use agent::{app::App as AgentApp, config::Config as AgentConfig};
 use controller::{application::App as ControllerApp, config::Config as ControllerConfig};
 use monitor::{app::App as MonitorApp, config::Config as MonitorConfig};
 use sealci_scheduler::{app::App as SchedulerApp, config::Config as SchedulerConfig};
+use compactor::{app::Compactor as CompactorApp, config::Config as CompactorConfig};
 use sealcid_traits::App;
 use tokio::sync::RwLock;
 use tonic::transport::Server;
@@ -12,6 +13,7 @@ use crate::{
     common::{error::Error, proto::daemon_server::DaemonServer},
     server::{config::GlobalConfig, service::SealedService},
 };
+use crate::server::config;
 
 pub struct Daemon {
     pub global_config: Arc<RwLock<GlobalConfig>>,
@@ -19,6 +21,7 @@ pub struct Daemon {
     pub controller: SealedService<ControllerApp, ControllerConfig>,
     pub monitor: SealedService<MonitorApp, MonitorConfig>,
     pub scheduler: SealedService<SchedulerApp, SchedulerConfig>,
+    pub release_agent: SealedService<CompactorApp, CompactorConfig>,
 }
 
 impl Daemon {
@@ -35,6 +38,7 @@ impl Daemon {
         let controller = ControllerApp::configure(global_config.clone().into())
             .await
             .map_err(Error::ConfigureControllerError)?;
+        let release_agent = CompactorApp::configure(global_config.clone().into()).await.map_err(Error::ConfigureReleaseAgentError)?;
 
         Ok(Self {
             global_config: Arc::new(RwLock::new(global_config.clone())),
@@ -42,6 +46,7 @@ impl Daemon {
             controller: SealedService::new(controller, global_config.clone()),
             monitor: SealedService::new(monitor, global_config.clone()),
             scheduler: SealedService::new(scheduler, global_config.clone()),
+            release_agent: SealedService::new(release_agent, global_config.clone()),
         })
     }
     pub async fn start(self, port: u32) -> Result<(), String> {
