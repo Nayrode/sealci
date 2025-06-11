@@ -52,6 +52,16 @@ struct Args {
     ///   --grpc http://127.0.0.1:50051
     #[clap(env, long)]
     pub grpc: String,
+
+    /// gRPC release agent service endpoint.
+    /// Precedence:
+    /// 1. --release-agent CLI flag
+    /// 2. RELEASE_AGENT env var
+    /// If unset, clap will report an error.
+    /// Example:
+    ///   --release-agent http://127.0.0.1:50051
+    #[clap(env, long)]
+    pub release_agent: String,
 }
 
 #[actix_web::main]
@@ -74,6 +84,7 @@ async fn main() -> std::io::Result<()> {
     let app_context: AppContext = AppContext::initialize(
         &args.database_url,
         &args.grpc,
+        &args.release_agent,
     ).await.expect("REASON");
 
     // Initialize tracing subscriber for logging
