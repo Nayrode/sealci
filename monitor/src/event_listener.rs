@@ -210,32 +210,37 @@ impl Listener {
                     .await
                 {
                     Ok(current_tags) => {
-                        info!("Current tags: {:?}", current_tags);
+                        if let Some(last_tag_pushed) = current_tags.get(0) {
+                            if !last_tags.iter().any(|t| t.name == last_tag_pushed.name) {
+                                info!(
+                                    "{}/{} - New tag found: {}",
+                                    repo_owner, repo_name, last_tag_pushed.name
+                                );
+                                last_tags = current_tags.clone();
 
-                        // Identify new tags by checking which tags are in current_tags but not in last_tags
-                        let new_tags: Vec<GitTag> = current_tags
-                            .iter()
-                            .filter(|tag| !last_tags.contains(tag))
-                            .cloned()
-                            .collect();
+                                // Send release information to controller
+                                if let Err(e) = controller_client
+                                    .send_release_to_controller(
+                                        &repo_url,
+                                        &last_tag_pushed.name,
+                                        &last_tag_pushed.commit.sha,
+                                    )
+                                    .await
+                                {
+                                    error!("Error sending release to controller: {}", e);
+                                }
 
-                        if !new_tags.is_empty() {
-                            info!(
-                                "{}/{} - New tags detected: {:?}",
-                                repo_owner, repo_name, new_tags
-                            );
-                            if let Err(e) = controller_client
-                                .send_to_controller(&repo_url, file.as_ref())
-                                .await
-                            {
-                                error!("Error sending to controller: {}", e);
-                                continue;
+                                // Also send the pipeline as before
+                                if let Err(e) = controller_client
+                                    .send_to_controller(&repo_url, file.as_ref())
+                                    .await
+                                {
+                                    error!("Error sending to controller: {}", e);
+                                }
                             }
-                            last_tags = current_tags; // Update the last tags
                         }
                     }
                     Err(_) => {
-                        // Handle errors (such as network issues or API problems)
                         error!("Error fetching the latest tags");
                     }
                 };

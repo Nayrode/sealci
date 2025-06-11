@@ -52,4 +52,29 @@ impl ControllerClient {
         info!("Response: {:?}", res);
         Ok(())
     }
+
+    pub async fn send_release_to_controller(
+        &self,
+        repo_url: &str,
+        tag_name: &str,
+        commit_sha: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let client: Client = Client::new();
+
+        let release_url = format!("{}/release", self.controller_url);
+        debug!("Sending release to controller {}", release_url);
+
+        let response = client
+            .post(&release_url)
+            .json(&serde_json::json!({
+                "repo_url": repo_url,
+                "tag_name": tag_name,
+                "commit_sha": commit_sha
+            }))
+            .send()
+            .await?;
+
+        info!("Release response: {:?}", response);
+        Ok(())
+    }
 }
