@@ -130,12 +130,10 @@ pub async fn pks_lookup(
     let fingerprint = fingerprint.split("0x").last().unwrap().to_string();
     let key_result = ctx.release_service.get_key(&fingerprint.clone()).await;
     match key_result {
-        Err(_) => {
-            return HttpResponse::NotFound().json(ReleaseResponse {
+        Err(_) => HttpResponse::NotFound().json(ReleaseResponse {
                 message: format!("Key with fingerprint {} not found", fingerprint),
                 status: "error".to_string(),
-            })
-        }
+            }),
         Ok(key) => HttpResponse::Ok()
             .append_header(("Content-Type", "text/plain"))
             .body(BoxBody::new(key)),
