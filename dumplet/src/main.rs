@@ -40,6 +40,7 @@ async fn run(args: &Args) -> Result<(), DumpletError> {
         &args.output_dir,
         env_vars,
         args.transfer_files.clone(),
+        Some("".to_string()),
     )
     .await?;
 

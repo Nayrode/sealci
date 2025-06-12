@@ -1,17 +1,10 @@
 use futures::lock::Mutex;
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::time::{sleep, Duration};
 use tracing::error;
 
-#[derive(Error, Debug)]
-pub enum AppError {
-    #[error("Failed to connect to the scheduler after multiple retries")]
-    SchedulerConnectionError,
-}
-
 use crate::{
-    application::services::release_service::ReleaseServiceImpl,
+    application::{services::release_service::ReleaseServiceImpl, AppError},
     infrastructure::{
         db::postgres::Postgres,
         grpc::{
@@ -77,7 +70,8 @@ impl AppContext {
         release_agent_url: &str,
     ) -> Result<Self, AppError> {
         // Initialize Postgres connection pool using provided database URL
-        let postgres = Arc::new(Postgres::new(database_url).await);
+        let postgres = Postgres::new(database_url).await?;
+        let postgres = Arc::new(postgres);
 
         // Exponential backoff configuration
         let mut retry_delay = Duration::from_secs(2);

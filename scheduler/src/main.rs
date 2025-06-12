@@ -1,22 +1,19 @@
+use sealci_scheduler::{
+    errors::Error,
+    config::Config,
+    app::App,
+};
+
 use clap::Parser;
 
-#[derive(Debug, Clone, Parser)]
-struct Config {
-    #[clap(short, long, default_value = "0.0.0.0:50051")]
-    pub addr: String,
-}
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Error> {
+    // Initialize logger.
     tracing_subscriber::fmt::init();
 
     let config = Config::parse();
-
-    let app = sealci_scheduler::app::App::new(sealci_scheduler::app::Config{
-        addr: config.addr,
-    });
-
-    app.run().await?;
+    let app = App::init(config)?;
+    app.start().await?;
 
     Ok(())
 }

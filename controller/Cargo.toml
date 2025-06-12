@@ -30,19 +30,14 @@ thiserror = "1.0.63"
 async-trait = "0.1.82"
 futures = "0.3.30"
 actix-cors = "0.7.0"
+sealcid_traits = { path = "../sealcid/sealcid_traits" }
 
 [build-dependencies]
 tonic-build = "0.12.0"
 
 
-[[bin]]
-name = "scheduler"
-path = "src/lib/server.rs"
-test = false
 
-[[bin]]
-name = "controller"
-path = "src/bin/main.rs"
+
 
 [lib]
 path = "src/lib/lib.rs"

@@ -4,13 +4,10 @@ use std::thread;
 
 use std::time::Duration;
 
-use grpc_scheduler::{
-    controller_server::{Controller, ControllerServer},
-    ActionRequest, ActionResponse,
-};
+use grpc_scheduler::{controller_server::Controller, ActionRequest, ActionResponse};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{async_trait, transport::Server, Request, Response, Status};
+use tonic::{async_trait, Request, Response, Status};
 
 pub mod grpc_scheduler {
     tonic::include_proto!("scheduler");
@@ -59,16 +56,4 @@ impl Controller for MockSchedulerService {
 
         Ok(Response::new(ReceiverStream::new(rx)))
     }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse().unwrap();
-    let scheduler_service = MockSchedulerService {};
-
-    Server::builder()
-        .add_service(ControllerServer::new(scheduler_service))
-        .serve(addr)
-        .await?;
-    Ok(())
 }

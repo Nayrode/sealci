@@ -1,0 +1,87 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+package sealcid;
+
+// The Daemon service is designed to help solve any problem by providing mutation operations
+// for various system components. Each RPC allows dynamic configuration and control,
+// enabling flexible solutions to a wide range of operational challenges.
+service Daemon {
+    rpc MutateAgent(AgentMutation) returns (google.protobuf.Empty);
+    rpc MutateReleaseAgent(ReleaseAgentMutation) returns (google.protobuf.Empty);
+    rpc MutateScheduler(SchedulerMutation) returns (google.protobuf.Empty);
+    rpc MutateMonitor(MonitorMutation) returns (google.protobuf.Empty);
+    rpc MutateController(ControllerMutation) returns (google.protobuf.Empty);
+    rpc Start(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Stop(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+// AgentMutation allows you to solve problems related to agent configuration.
+message AgentMutation {
+  optional bool toggle_agent = 1;
+  optional string agent_host = 2; // optional
+  optional uint32 agent_port = 3; // optional
+}
+
+// SchedulerMutation enables solving scheduling-related problems.
+message SchedulerMutation {
+  optional bool toggle_scheduler = 1;
+  optional string scheduler_host = 2; // optional
+  optional string scheduler_port = 3; // optional
+}
+
+// MonitorMutation helps solve monitoring problems.
+message MonitorMutation {
+  optional bool toggle_monitor = 1;
+  optional string monitor_port = 2; // optional
+}
+
+// ControllerMutation is for solving controller configuration problems.
+message ControllerMutation {
+    optional bool toggle_controller = 1;
+    optional string controller_host = 2; // optional
+    optional string controller_port = 3; // optional
+    optional string database_url = 4; // optional
+}
+
+// ReleaseAgentMutation provides solutions for release agent management problems.
+message ReleaseAgentMutation {
+  optional bool toggle_release_agent = 1;
+  optional string release_agent_host = 2; // optional
+  optional string release_agent_port = 3; // optional
+  optional string passphrase = 4; // optional
+  optional string secret_key = 5; // optional
+  optional string git_path = 6; // optional
+  optional string bucket_addr = 7; // optional
+  optional string bucket_access_key = 8; // optional
+  optional string bucket_secret_key = 9; // optional
+  optional string bucket_name = 10; // optional
+}
+
+enum Services {
+  AGENT = 0;
+  SCHEDULER = 1;
+  MONITOR = 2;
+  CONTROLLER = 3;
+  RELEASE_AGENT = 4;
+}
+
+message StatusRequest {
+  optional Services status_type = 1;
+}
+
+enum ServiceStatus {
+  RUNNING = 0; // Default value, indicates unknown status
+  STOPPED = 1; // Indicates the service is active
+  BOOTING = 2; // Indicates the service is inactive
+  ERROR = 3; // Indicates an error state in the service
+}
+
+message ServiceStatusMessage {
+  Services service = 1; // The service type
+  ServiceStatus status = 2; // The current status of the service
+}
+
+message StatusResponse {
+  repeated ServiceStatusMessage statuses = 1;
+}

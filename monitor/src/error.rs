@@ -12,6 +12,7 @@ pub enum Error {
     FaildToReadGitEvent,
     FileReadError(std::io::Error),
     ServerError(std::io::Error),
+    ServerUninitialized,
 }
 
 impl Display for Error {
@@ -26,6 +27,10 @@ impl Display for Error {
             Error::Error(e) => write!(f, "Error: {}", e),
             Error::ServerError(e) => write!(f, "Server error: {}", e),
             Error::NoTagFound => write!(f, "No tag found"),
+            Error::ServerUninitialized => write!(
+                f,
+                "You tried to launch the monitor server but i was nerver initialized"
+            ),
         }
     }
 }

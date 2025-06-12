@@ -9,3 +9,6 @@ dumper = { path = "../dumper" }
 dumplet = { path = "../dumplet" }
 env = "1.0.1"
 tokio = { version = "1.45.1", features = ["full"] }
+sealcid_traits = { path = "../sealcid/sealcid_traits" }
+tonic = "0.13.1"
+tracing = "0.1.40"

@@ -1,6 +1,9 @@
+use std::time::Duration;
+
+use tokio::time::sleep;
 use tokio_stream::StreamExt;
 use tonic::IntoStreamingRequest;
-use tracing::{error, info};
+use tracing::{error, warn};
 
 use crate::{
     models::error::Error::{self, ConnectionError, RegistrationError},
@@ -26,15 +29,36 @@ impl SchedulerService {
         port: u32,
         health_service: HealthService,
     ) -> Result<Self, Error> {
-        info!("{}", scheduler_url.to_string());
-        let scheduler_agent_client = AgentClient::connect(scheduler_url.to_string())
-            .await
-            .map_err(ConnectionError)?;
-        let agent_advertise_url = String::from(agent_host);
+        let mut retry_delay = Duration::from_secs(2);
+        const MAX_RETRY_DELAY: u64 = 64;
+        let mut retry_count = 0;
+        let scheduler_agent_client = loop {
+            match AgentClient::connect(scheduler_url.to_string())
+                .await
+                .map_err(ConnectionError)
+            {
+                Ok(client) => break client,
+                Err(e) => {
+                    if retry_count >= 10 {
+                        return Err(e);
+                    }
+                    warn!(
+                        "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
+                        e, retry_delay
+                    );
+                    sleep(retry_delay).await;
+                    retry_delay *= 2;
+                    if retry_delay > Duration::from_secs(MAX_RETRY_DELAY) {
+                        retry_delay = Duration::from_secs(MAX_RETRY_DELAY);
+                    }
+                    retry_count += 1;
+                }
+            }
+        };
         Ok(SchedulerService {
             scheduler_agent_client,
             health_service,
-            agent_advertise_url,
+            agent_advertise_url: agent_host,
             port,
             agent_id: None,
         })

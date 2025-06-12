@@ -4,9 +4,14 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use tonic::{transport::Channel, Response};
 
-use crate::domain::{
-    self,
-    releases::entities::{CreateReleaseRequest, CreateReleaseResponse, PublicKey, ReleaseStatus},
+use crate::{
+    application::AppError,
+    domain::{
+        self,
+        releases::entities::{
+            CreateReleaseRequest, CreateReleaseResponse, PublicKey, ReleaseStatus,
+        },
+    },
 };
 
 use crate::infrastructure::grpc::proto_release_agent::{
@@ -22,8 +27,10 @@ pub struct GrpcReleaseAgentClient {
 }
 
 impl GrpcReleaseAgentClient {
-    pub async fn new(grpc_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let client = ReleaseAgentClient::connect(grpc_url.to_string()).await?;
+    pub async fn new(grpc_url: &str) -> Result<Self, AppError> {
+        let client = ReleaseAgentClient::connect(grpc_url.to_string())
+            .await
+            .map_err(AppError::ReleaseConnectionError)?;
         tracing::info!("Connected to release agent at {}", grpc_url);
         Ok(Self {
             client: Arc::new(Mutex::new(client)),
