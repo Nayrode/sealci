@@ -31,10 +31,10 @@ The `lib.rs` module contains the main logic for Compactor. It:
 
 ## Usage
 
-To use Compactor, run the following command:
+To use Compactor, run the following command with root capabilities:
 
 ```bash
-cargo run -- --image <docker-image-name> --env KEY=VALUE --transfer-files /host/path:/guest/path
+cargo run -- <docker-image-name> --env KEY=VALUE --transfer-files /host/path:/guest/path
 ```
 
 ### Example
@@ -47,7 +47,7 @@ ip link set tap0 up
 
 
 ```bash
-cargo run -- --image alpine:3.14 --env DEBUG=true LOG_LEVEL=info --transfer-files /tmp/data:/app/data --tap-interface-name tap0
+cargo run -- alpine:3.14 --env DEBUG=true LOG_LEVEL=info --transfer-files /tmp/data:/app/data --tap-interface-name tap0
 ```
 
 This command will:

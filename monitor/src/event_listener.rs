@@ -1,4 +1,4 @@
-use crate::common::{GitEvent, GitTag};
+use crate::common::GitEvent;
 use crate::github::GitHubClient;
 use crate::{controller::ControllerClient, error::Error};
 use std::fs::File;
@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(serde::Serialize)]
 pub struct Listener {
@@ -58,7 +58,10 @@ impl Listener {
     }
 
     pub async fn listen_to_commits(&self) -> Result<(), Error> {
-        info!("Searching commits....");
+        debug!(
+            "Searching commits for {}-{}",
+            self.repo_owner, self.repo_name
+        );
 
         let last_commit = self
             .github_client
@@ -69,8 +72,6 @@ impl Listener {
                 None,
             )
             .await?;
-
-        info!("Last commit found: {}", last_commit);
 
         let repo_owner = self.repo_owner.clone();
         let repo_name = self.repo_name.clone();
@@ -121,6 +122,10 @@ impl Listener {
     }
 
     pub async fn listen_to_pull_requests(&self) -> Result<(), Error> {
+        debug!(
+            "Searching pull requests for {}-{}",
+            self.repo_owner, self.repo_name
+        );
         let last_pull_requests = self
             .github_client
             .get_pull_requests(
@@ -180,6 +185,10 @@ impl Listener {
     }
 
     pub async fn listen_to_tags(&self) -> Result<(), Error> {
+        debug!(
+            "Searching pull requests for {}-{}",
+            self.repo_owner, self.repo_name
+        );
         let tags = self
             .github_client
             .get_tags(
@@ -210,32 +219,33 @@ impl Listener {
                     .await
                 {
                     Ok(current_tags) => {
-                        info!("Current tags: {:?}", current_tags);
+                        if let Some(last_tag_pushed) = current_tags.get(0) {
+                            if !last_tags.iter().any(|t| t.name == last_tag_pushed.name) {
+                                info!(
+                                    "{}/{} - New tag found: {}",
+                                    repo_owner, repo_name, last_tag_pushed.name
+                                );
+                                last_tags = current_tags.clone();
 
-                        // Identify new tags by checking which tags are in current_tags but not in last_tags
-                        let new_tags: Vec<GitTag> = current_tags
-                            .iter()
-                            .filter(|tag| !last_tags.contains(tag))
-                            .cloned()
-                            .collect();
+                                // Send release information to controller
+                                if let Err(e) = controller_client
+                                    .send_release_to_controller(&repo_url, &last_tag_pushed.name)
+                                    .await
+                                {
+                                    error!("Error sending release to controller: {}", e);
+                                }
 
-                        if !new_tags.is_empty() {
-                            info!(
-                                "{}/{} - New tags detected: {:?}",
-                                repo_owner, repo_name, new_tags
-                            );
-                            if let Err(e) = controller_client
-                                .send_to_controller(&repo_url, file.as_ref())
-                                .await
-                            {
-                                error!("Error sending to controller: {}", e);
-                                continue;
+                                // Also send the pipeline as before
+                                if let Err(e) = controller_client
+                                    .send_to_controller(&repo_url, file.as_ref())
+                                    .await
+                                {
+                                    error!("Error sending to controller: {}", e);
+                                }
                             }
-                            last_tags = current_tags; // Update the last tags
                         }
                     }
                     Err(_) => {
-                        // Handle errors (such as network issues or API problems)
                         error!("Error fetching the latest tags");
                     }
                 };

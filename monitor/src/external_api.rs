@@ -64,15 +64,22 @@ pub async fn add_configuration(
     if content.is_empty() {
         return HttpResponse::BadRequest().body("Actions file is empty");
     }
-    info!("Received actions file with content: {}", content);
-
     let mut events: Vec<GitEvent> = Vec::new();
     events.push(form.events.into_inner());
+    
+        let owner = form.repository_owner.into_inner();
+        let name = form.repository_name.into_inner();
+        info!(
+            "Adding listener for repository: owner={}, name={}, events={:?}",
+            owner, name, events
+        );
+    
+
     let action_file = Arc::new(action_file);
     let listener = match listener_service
         .add_listener(
-            form.repository_owner.into_inner(),
-            form.repository_name.into_inner(),
+            owner,
+            name,
             action_file,
             events,
             form.github_token.into_inner(),

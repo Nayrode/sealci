@@ -18,6 +18,7 @@ async fn main() -> Result<(), error::Error> {
     dotenv::dotenv().ok();
     tracing_subscriber::fmt::init();
     let config = Config::parse();
-    let app = app::App::new(config.clone());
-    app.run().await
+    let app = app::App::init(config.clone());
+    app.await?.start().await?.await.expect("REASON");
+    Ok(())
 }

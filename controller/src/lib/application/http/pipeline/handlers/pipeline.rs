@@ -2,12 +2,10 @@ use actix_multipart::form::{tempfile::TempFile, text::Text as MpText, MultipartF
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::Deserialize;
 use std::io::Read;
-use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::application::app_context::AppContext;
 use crate::application::ports::pipeline_service::PipelineService;
-use crate::application::services::pipeline_service::DefaultPipelineServiceImpl;
 use crate::parser::pipe_parser::{
     ManifestParser, ManifestPipeline as ParserManifestPipeline, ParsingError, PipeParser,
 };
@@ -61,7 +59,11 @@ pub async fn get_pipeline(
     match ctx.pipeline_service.find_by_id(id).await {
         Ok(mut pipeline) => {
             if verbose {
-                if let Err(e) = ctx.pipeline_service.add_verbose_details(&mut pipeline).await {
+                if let Err(e) = ctx
+                    .pipeline_service
+                    .add_verbose_details(&mut pipeline)
+                    .await
+                {
                     error!("Failed to enrich pipeline {} with logs: {:?}", id, e);
                 }
             }
@@ -102,7 +104,9 @@ pub async fn create_pipeline(
         Err(ParsingError::YamlNotCompliant) => {
             return HttpResponse::BadRequest().body("Invalid YAML format");
         }
-        Err(e) => return HttpResponse::BadRequest().body(format!("Parse error: {:?}", e)),
+        Err(e) => {
+            return HttpResponse::BadRequest().body(format!("Parse error: {:?}", e));
+        }
     };
 
     let actions_map = parser_manifest
@@ -119,13 +123,14 @@ pub async fn create_pipeline(
         })
         .collect();
     let domain_manifest = DomainManifestPipeline {
-        name: parser_manifest.name,
+        name: parser_manifest.name.clone(),
         actions: ActionsMap {
             actions: actions_map,
         },
     };
 
-    match ctx.pipeline_service
+    match ctx
+        .pipeline_service
         .create_manifest_pipeline(domain_manifest, repo_url)
         .await
     {

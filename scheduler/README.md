@@ -2,14 +2,21 @@
 
 ## Dependencies
 
-This microservice uses Tonic. Tonic makes use of Prost, and is built on top of the tokio stack.
-We also use log and env_logger for logging.
+- `sealcid_traits` to implement the `App` trait common to SealCI services.
+- `tonic` for gRPC and `prost` for protobuf.
+- `tokio` packages for asynchronicity.
+- `tracing` for textual logging.
+- `clap` for the CLI.
+- `http`, only used to parse Agent addresses into valid URIs for Tonic.
+
+This microservice uses Tonic. Tonic (gRPC) makes use of Prost (protobuf), and is built on top of the tokio stack.
+We also use the `tracing` package for logging.
 
 ## Commands
 
-Place yourself in the microservice root directory (`sealci/scheduler/`)
+Place yourself in the scheduler service's directory (`sealci/scheduler/`)
 
-Starting the Scheduler server
+To start the Scheduler service:
 
 ```bash
 cargo run
@@ -18,12 +25,12 @@ cargo run
 With 'debug' logging level
 
 ```bash
-RUST_LOG=debug cargo run --bin server 
+RUST_LOG=debug cargo run
 ```
 
 More logging levels (by order of increasing verbosity): 'error', 'warn', 'info', 'debug', 'trace'.
 
-Launching integration tests
+To launch integration tests
 
 ```bash
 cargo test
@@ -35,15 +42,13 @@ You can also launch them individually:
 cargo test --test name_of_test
 ```
 
-> Note: to build the server with optimizations: `cargo build --release --bin server` (also works with cargo run)
-
 The command used to build (or run) the server for production is:
 
 ```bash
-RUST_LOG=info cargo run -r --bin server 
+RUST_LOG=info cargo build -r
 ```
 
-> Note: `--release` is the same as `-r`
+> Note: `--release` is the same as `-r`. It builds the binary with optimizations.
 
 ### With Docker Compose
 
@@ -61,6 +66,7 @@ As per the `docker-compose.yml` file:
 - The container will run on `0.0.0.0:5005`. That is equivalent to `[::]:5005` or `[::0]:5005` in IPv6.
 
 You can then follow the logs:
+
 ```bash
 docker compose logs -f
 ```
@@ -72,7 +78,16 @@ docker compose logs -f
 Testing Agent registration locally:
 
 ```bash
-$ grpcurl -d '{"cpu_avail": 50, "memory_avail": 1024}' -plaintext [::1]:50051 scheduler.Agent.RegisterAgent
+$ grpcurl -plaintext -d '{
+  "health": {
+    "cpu_avail": 4,
+    "memory_avail": 8192
+  },
+  "hostname": {
+    "host": "127.0.0.1",
+    "port": 50051
+  }
+}' localhost:50051 scheduler.Agent/RegisterAgent
 
 {
   "id": 1
