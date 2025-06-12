@@ -4,14 +4,9 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use tonic::{transport::Channel, Response};
 
-use crate::{
-    domain::{
-        self,
-        releases::entities::{
-            CreateReleaseRequest, CreateReleaseResponse, PublicKey, ReleaseStatus,
-        },
-    },
-    infrastructure::grpc,
+use crate::domain::{
+    self,
+    releases::entities::{CreateReleaseRequest, CreateReleaseResponse, PublicKey, ReleaseStatus},
 };
 
 use crate::infrastructure::grpc::proto_release_agent::{

@@ -20,10 +20,9 @@ use crate::{
         },
         repositories::{
             action_repository::PostgresActionRepository,
-            command_repository::PostgresCommandRepository,
-            log_repository::PostgresLogRepository,
+            command_repository::PostgresCommandRepository, log_repository::PostgresLogRepository,
             pipeline_repository::PostgresPipelineRepository,
-            release_repository::{self, PostgresReleaseRepository},
+            release_repository::PostgresReleaseRepository,
         },
     },
 };

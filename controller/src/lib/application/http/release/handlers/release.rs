@@ -1,6 +1,6 @@
-use actix_web::{error::InternalError, get, post, web, HttpResponse, Responder};
+use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{
     application::{app_context::AppContext, ports::release_service::ReleaseService},

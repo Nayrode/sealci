@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tracing::info;
 
 use crate::{
