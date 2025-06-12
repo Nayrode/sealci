@@ -1,4 +1,4 @@
-use crate::common::{GitEvent, GitTag};
+use crate::common::GitEvent;
 use crate::github::GitHubClient;
 use crate::{controller::ControllerClient, error::Error};
 use std::fs::File;

@@ -4,20 +4,8 @@ use clap::Parser;
 use controller::application::app_context::AppContext;
 use controller::application::http::pipeline::router::configure as configure_pipeline_routes;
 use controller::application::http::release::router::configure as configure_release_routes;
-use controller::application::services::action_service::ActionServiceImpl;
-use controller::application::services::command_service::CommandServiceImpl;
-use controller::application::services::pipeline_service::PipelineServiceImpl;
-use controller::application::services::scheduler_service_impl::SchedulerServiceImpl;
-use controller::infrastructure::db::postgres::Postgres;
-use controller::infrastructure::grpc::grpc_scheduler_client::GrpcSchedulerClient;
-use controller::infrastructure::repositories::action_repository::PostgresActionRepository;
-use controller::infrastructure::repositories::command_repository::PostgresCommandRepository;
-use controller::infrastructure::repositories::log_repository::PostgresLogRepository;
-use controller::infrastructure::repositories::pipeline_repository::PostgresPipelineRepository;
 use controller::{docs, health};
 use dotenv::dotenv;
-use futures::lock::Mutex;
-use std::sync::Arc;
 use tracing::info;
 
 #[derive(Parser, Debug)]
@@ -52,11 +40,20 @@ struct Args {
     ///   --grpc http://127.0.0.1:50051
     #[clap(env, long)]
     pub grpc: String,
+
+    /// gRPC release agent service endpoint.
+    /// Precedence:
+    /// 1. --release-agent CLI flag
+    /// 2. RELEASE_AGENT env var
+    /// If unset, clap will report an error.
+    /// Example:
+    ///   --release-agent http://127.0.0.1:50051
+    #[clap(env, long)]
+    pub release_agent: String,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-
     // Load .env file into OS environment variables before parsing clap args.
     // This ensures HTTP, DATABASE_URL, GRPC can be defined in .env and picked up here.
     dotenv().ok();
@@ -71,17 +68,16 @@ async fn main() -> std::io::Result<()> {
     let addr_in: String = args.http;
 
     // Initialize application context with database and gRPC service configurations
-    let app_context: AppContext = AppContext::initialize(
-        &args.database_url,
-        &args.grpc,
-    ).await.expect("REASON");
+    let app_context: AppContext =
+        AppContext::initialize(&args.database_url, &args.grpc, &args.release_agent)
+            .await
+            .expect("REASON");
 
     // Initialize tracing subscriber for logging
     tracing_subscriber::fmt::init();
-    
 
     info!("Listening on {}", addr_in);
-    
+
     // Start HTTP server with CORS, logging middleware, and configured routes
     HttpServer::new(move || {
         // Configure CORS to allow any origin/method/header, cache preflight for 1 hour
