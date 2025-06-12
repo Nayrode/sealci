@@ -260,6 +260,15 @@ impl DaemonGrpc for Daemon {
             .restart_with_config(scheduler_config)
             .await
             .map_err(|e| Status::failed_precondition(Error::RestartSchedulerError(e)))?;
+        self.release_agent
+            .enable()
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartReleaseAgentError(e)))?;
+
+        self.release_agent
+            .restart()
+            .await
+            .map_err(|e| Status::failed_precondition(Error::RestartReleaseAgentError(e)))?;
         Ok(Response::new(()))
     }
     async fn stop(&self, request: Request<()>) -> Result<Response<()>, Status> {

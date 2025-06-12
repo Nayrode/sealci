@@ -46,7 +46,7 @@ impl Default for GlobalConfig {
     fn default() -> Self {
         GlobalConfig {
             monitor_port: "4444".to_string(),
-            controller_host: "http://0.0.0.0".to_string(),
+            controller_host: "http://localhost".to_string(),
             controller_port: "4445".to_string(),
             database_url: "postgres://postgres:postgres@0.0.0.0:5432/sealci".to_string(),
             release_agent_host: "http://192.168.1.2".to_string(),

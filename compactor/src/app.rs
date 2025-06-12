@@ -26,7 +26,7 @@ impl sealcid_traits::App<Config> for Compactor {
             _ = tokio::task::spawn_blocking(move ||{
             // Run the blocking code inside spawn_blocking
             println!("Starting Compactor service...");
-            let handlers = app.vmm.clone().lock().unwrap().run(false);
+            let handlers = app.vmm.clone().lock().unwrap().run(true);
             println!("{:?}", handlers);
         }) => {}
             _ = recv.changed() => {

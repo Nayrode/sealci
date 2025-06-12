@@ -5,6 +5,8 @@ pub mod services;
 
 use crate::application::app_context::AppContext;
 use crate::application::http::pipeline::router::configure as configure_pipeline_routes;
+use crate::application::http::release::router::configure as configure_release_routes;
+
 use crate::config::Config;
 use crate::domain::command::entities::command::CommandError;
 use crate::domain::scheduler::entities::scheduler::SchedulerError;
@@ -34,18 +36,20 @@ pub enum AppError {
 
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                AppError::ParsingError(_) => write!(f, "Parsing error"),
-                AppError::CommandError(e) => write!(f, "Command error: {}", e),
-                AppError::SchedulerError(e) => write!(f, "Scheduler error: {}", e),
-                AppError::ActixWebError => write!(f, "Actix web error"),
-                AppError::Error(msg) => write!(f, "Error: {}", msg),
-                AppError::DatabaseConnectionError(error) => write!(f, "Database error: {}", error),
-                AppError::SchedulerConnectionError => write!(f, "Scheduler connection error"),
-                AppError::GrpcConnectionError(error) => write!(f, "gRPC connection error: {}", error),
-                AppError::ReleaseConnectionError(error) => write!(f, "Release connection error: {}", error),
+        match self {
+            AppError::ParsingError(_) => write!(f, "Parsing error"),
+            AppError::CommandError(e) => write!(f, "Command error: {}", e),
+            AppError::SchedulerError(e) => write!(f, "Scheduler error: {}", e),
+            AppError::ActixWebError => write!(f, "Actix web error"),
+            AppError::Error(msg) => write!(f, "Error: {}", msg),
+            AppError::DatabaseConnectionError(error) => write!(f, "Database error: {}", error),
+            AppError::SchedulerConnectionError => write!(f, "Scheduler connection error"),
+            AppError::GrpcConnectionError(error) => write!(f, "gRPC connection error: {}", error),
+            AppError::ReleaseConnectionError(error) => {
+                write!(f, "Release connection error: {}", error)
             }
         }
+    }
 }
 // type Error = AppError;
 
@@ -68,7 +72,10 @@ impl sealcid_traits::App<Config> for App {
             return Ok(());
         }
         process.push(tokio::spawn(async move {
-            this.start().await?.await.expect("should be launched successfully");
+            this.start()
+                .await?
+                .await
+                .expect("should be launched successfully");
             if let Err(e) = this.start().await {
                 tracing::error!("Failed to start Controller service: {}", e);
             }
@@ -141,7 +148,12 @@ impl App {
 
     pub async fn start(&self) -> Result<Server, AppError> {
         let config = Arc::clone(&self.config);
-        let app_context = AppContext::initialize(&config.database_url, &config.grpc,&self.config.release_agent).await?;
+        let app_context = AppContext::initialize(
+            &config.database_url,
+            &config.grpc,
+            &self.config.release_agent,
+        )
+        .await?;
         // Start HTTP server with CORS, logging middleware, and configured routes
         let server = HttpServer::new(move || {
             // Configure CORS to allow any origin/method/header, cache preflight for 1 hour
@@ -157,6 +169,7 @@ impl App {
                 // Register application state data for pipeline, action, and scheduler services
                 .app_data(Data::new(app_context.clone()))
                 .configure(configure_pipeline_routes)
+                .configure(configure_release_routes)
                 // Add documentation and health check endpoints
                 .service(docs::doc)
                 .service(docs::openapi)
