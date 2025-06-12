@@ -1,11 +1,17 @@
-use actix_web::{error::InternalError, post, web, HttpResponse, Responder};
+use actix_web::{error::InternalError, get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{
     application::{app_context::AppContext, ports::release_service::ReleaseService},
-    domain::releases::entities::ReleaseError,
+    domain::releases::entities::{Release, ReleaseError},
 };
+
+#[derive(Deserialize)]
+struct ListReleasesQuery {
+    owner: String,
+    repo: String,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ReleaseRequest {
@@ -19,6 +25,12 @@ pub struct ReleaseResponse {
     pub message: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ReleasesResponse {
+    pub status: String,
+    pub releases: Vec<Release>,
+}
+
 #[post("/release")]
 pub async fn handle_release(
     release_data: web::Json<ReleaseRequest>,
@@ -29,7 +41,7 @@ pub async fn handle_release(
         release_data.repo_url, release_data.tag_name
     );
 
-    let mut release_service = ctx.release_service.lock().await;
+    let release_service = ctx.release_service.clone();
     match release_service
         .create_release(
             release_data.repo_url.to_string().as_str(),
@@ -70,4 +82,25 @@ pub async fn handle_release(
 
     // TODO: Implement release handling logic
     // For now, we'll just acknowledge the request
+}
+
+#[get("/release/{owner}/{repo}")]
+pub async fn list_releases(
+    path: web::Path<ListReleasesQuery>,
+    ctx: web::Data<AppContext>,
+) -> impl Responder {
+    let release_service = ctx.release_service.clone();
+    let releases = release_service
+        .list_releases(format!("https://github.com/{}/{}", path.owner, path.repo).as_str())
+        .await;
+    match releases {
+        Err(_) => HttpResponse::InternalServerError().json(ReleasesResponse {
+            releases: vec![],
+            status: "error".to_string(),
+        }),
+        Ok(list_releases) => HttpResponse::Ok().json(ReleasesResponse {
+            releases: list_releases,
+            status: "success".to_string(),
+        }),
+    }
 }

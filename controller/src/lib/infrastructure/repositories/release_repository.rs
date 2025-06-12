@@ -1,17 +1,16 @@
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::sync::Arc;
+use tracing::info;
 
 use crate::{
-    infrastructure::db::postgres::Postgres,
     domain::releases::{
         entities::{Release, ReleaseError},
-        ports::{ReleaseRepository},
-    }
+        ports::ReleaseRepository,
+    },
+    infrastructure::db::postgres::Postgres,
 };
 
-
 pub struct PostgresReleaseRepository {
-
     pub postgres: Arc<Postgres>,
 }
 
@@ -31,6 +30,7 @@ impl ReleaseRepository for PostgresReleaseRepository {
         public_key: String,
         fingerprint: String,
     ) -> Result<Release, ReleaseError> {
+        info!("inserting {}", repo_url);
         let row = sqlx::query!(
             "INSERT INTO releases (repo_url, revision, path, public_key, fingerprint) VALUES ($1, $2, $3, $4, $5)
              RETURNING id, repo_url, revision, path, public_key, fingerprint",

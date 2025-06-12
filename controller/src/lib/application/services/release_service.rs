@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use futures::lock::Mutex;
 use std::{path::PathBuf, sync::Arc};
+use tracing::info;
 
 use crate::{
     application::ports::release_service::ReleaseService,
@@ -16,7 +16,7 @@ where
     R: ReleaseAgentClient + Send + Sync,
     P: ReleaseRepository + Send + Sync,
 {
-    release_agent_client: Arc<Mutex<R>>,
+    release_agent_client: Arc<R>,
     release_repository: Arc<P>,
 }
 
@@ -25,7 +25,7 @@ where
     R: ReleaseAgentClient + Send + Sync,
     P: ReleaseRepository + Send + Sync,
 {
-    pub fn new(release_agent_client: Arc<Mutex<R>>, release_repository: Arc<P>) -> Self {
+    pub fn new(release_agent_client: Arc<R>, release_repository: Arc<P>) -> Self {
         Self {
             release_agent_client,
             release_repository,
@@ -44,7 +44,7 @@ where
             repo_url: repo_url.to_string(),
             revision: revision.to_string(),
         };
-        let client = self.release_agent_client.lock().await;
+        let client = self.release_agent_client.clone();
         let release_answer = client
             .release(request)
             .await
@@ -53,13 +53,17 @@ where
             return Err(ReleaseError::ReleaseAgentError);
         }
         let public_key = release_answer.public_key.unwrap().clone();
-        let _ = self.release_repository.create_release(
-            repo_url.to_string(),
-            revision.to_string(),
-            release_answer.release_id,
-            public_key.key_data,
-            public_key.fingerprint,
-        );
+        info!("pk : {}", public_key.key_data);
+        let _ = self
+            .release_repository
+            .create_release(
+                repo_url.to_string(),
+                revision.to_string(),
+                release_answer.release_id,
+                public_key.key_data,
+                public_key.fingerprint,
+            )
+            .await?;
         Ok(())
     }
 

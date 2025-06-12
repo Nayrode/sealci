@@ -68,8 +68,7 @@ pub struct AppContext {
             >,
         >,
     >,
-    pub release_service:
-        Arc<Mutex<ReleaseServiceImpl<GrpcReleaseAgentClient, PostgresReleaseRepository>>>,
+    pub release_service: Arc<ReleaseServiceImpl<GrpcReleaseAgentClient, PostgresReleaseRepository>>,
 }
 
 impl AppContext {
@@ -132,7 +131,7 @@ impl AppContext {
 
         // Wrap gRPC client in async Mutex for shared state
         let scheduler_client = Arc::new(Mutex::new(grpc_client));
-        let release_agent_client = Arc::new(Mutex::new(release_agent_grpc_client));
+        let release_agent_client = Arc::new(release_agent_grpc_client);
 
         let command_repository = Arc::new(PostgresCommandRepository::new(postgres.clone()));
 
@@ -153,10 +152,10 @@ impl AppContext {
             pipeline_repository.clone(),
         )));
 
-        let release_service = Arc::new(Mutex::new(ReleaseServiceImpl::new(
+        let release_service = Arc::new(ReleaseServiceImpl::new(
             release_agent_client,
             release_repository,
-        )));
+        ));
 
         let pipeline_service = Arc::new(PipelineServiceImpl::new(
             pipeline_repository.clone(),
