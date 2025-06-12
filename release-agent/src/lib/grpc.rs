@@ -42,6 +42,7 @@ where
     ) -> Result<Response<release_agent_grpc::CreateReleaseResponse>, Status> {
         let request = request.into_inner().clone();
         let repository_url = request.clone().repo_url;
+        let release_path=  format!("releases/{}/{}", repository_url.trim_start_matches("https://github.com/"), request.revision);
         let revision = request.revision;
         match self.core.create_release(&revision, &repository_url).await {
             Ok(release) => {
@@ -50,7 +51,7 @@ where
                     fingerprint: release.public_key.fingerprint,
                 };
                 let response = release_agent_grpc::CreateReleaseResponse {
-                    release_id: revision.to_string(),
+                    release_id: release_path,
                     status: release_agent_grpc::CreateReleaseStatus::Success as i32,
                     public_key: Some(public_key),
                 };
