@@ -3,6 +3,7 @@ use actix_web::{web::Data, App, HttpServer};
 use clap::Parser;
 use controller::application::app_context::AppContext;
 use controller::application::http::pipeline::router::configure as configure_pipeline_routes;
+use controller::application::http::release::router::configure as configure_release_routes;
 use controller::application::services::action_service::ActionServiceImpl;
 use controller::application::services::command_service::CommandServiceImpl;
 use controller::application::services::pipeline_service::PipelineServiceImpl;
@@ -96,6 +97,7 @@ async fn main() -> std::io::Result<()> {
             // Register application state data for pipeline, action, and scheduler services
             .app_data(Data::new(app_context.clone()))
             .configure(configure_pipeline_routes)
+            .configure(configure_release_routes)
             // Add documentation and health check endpoints
             .service(docs::doc)
             .service(docs::openapi)
