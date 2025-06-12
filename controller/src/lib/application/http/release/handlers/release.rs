@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use actix_web::{body::BoxBody, get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -127,13 +125,21 @@ pub async fn pks_lookup(
             status: "error".to_string(),
         });
     }
-    let fingerprint = fingerprint.split("0x").last().unwrap().to_string();
+    let fingerprint = match fingerprint.split("0x").last() {
+        Some(fp) => fp.to_string(),
+        None => {
+            return HttpResponse::BadRequest().json(ReleaseResponse {
+                message: "Invalid fingerprint format. Expected '0x' prefix.".to_string(),
+                status: "error".to_string(),
+            });
+        }
+    };
     let key_result = ctx.release_service.get_key(&fingerprint.clone()).await;
     match key_result {
         Err(_) => HttpResponse::NotFound().json(ReleaseResponse {
-                message: format!("Key with fingerprint {} not found", fingerprint),
-                status: "error".to_string(),
-            }),
+            message: format!("Key with fingerprint {} not found", fingerprint),
+            status: "error".to_string(),
+        }),
         Ok(key) => HttpResponse::Ok()
             .append_header(("Content-Type", "text/plain"))
             .body(BoxBody::new(key)),
