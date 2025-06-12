@@ -1,7 +1,8 @@
 use std::io::Cursor;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::sync::oneshot::Sender;
-use tokio::sync::{oneshot, watch, Mutex, RwLock};
+use tokio::sync::{oneshot, watch, RwLock};
 use dumper::config::VmmConfig;
 use dumper::vmm::VMM;
 
@@ -59,9 +60,7 @@ impl Compactor {
         })
     }
 
-    pub async fn run(&mut self) {
-        let (send, recv) = watch::channel::<()>(());
-        *self.vcpu_handle.write().await = Some(send);
-        
+    pub fn run(&mut self) {
+        self.vmm.clone().lock().unwrap().run(true).unwrap();
     }
 }

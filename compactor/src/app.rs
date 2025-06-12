@@ -21,20 +21,19 @@ impl sealcid_traits::App<Config> for Compactor {
         let handle = recv.clone();
         let process = app_process.write().await;
         let mut app = self.clone();
-        let task = tokio::spawn(async move {
-            // Run the blocking code inside spawn_blocking
-            println!("Starting Compactor service...");
-            let handlers = app.vmm.lock().await.run(false);
-            println!("{:?}", handlers);
-        });
         tokio::spawn(async move {
             tokio::select! {
-            _ = task => {}
+            _ = tokio::task::spawn_blocking(move ||{
+            // Run the blocking code inside spawn_blocking
+            println!("Starting Compactor service...");
+            let handlers = app.vmm.clone().lock().unwrap().run(false);
+            println!("{:?}", handlers);
+        }) => {}
             _ = recv.changed() => {
                 info!("Received shutdown signal, stopping the app...");
             }
         };});
-        
+
         Ok(())
     }
 

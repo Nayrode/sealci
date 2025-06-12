@@ -5,7 +5,7 @@ use compactor::{Compactor, config::Config, error::Error};
 async fn main() -> Result<(), Error> {
     let config = Config::parse();
     let mut compactor = Compactor::new(config).await?;
-    compactor.run().await;
+    compactor.run();
     
     Ok(())
 }

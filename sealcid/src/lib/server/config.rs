@@ -54,7 +54,7 @@ impl Default for GlobalConfig {
             passphrase: "changeme".to_string(),
             secret_key: "secret".to_string(),
             git_path: "/usr/bin/git".to_string(),
-            bucket_addr: "192.168.1.1:9000".to_string(),
+            bucket_addr: "http://192.168.1.1:9000".to_string(),
             bucket_access_key: "minioadmin".to_string(),
             bucket_secret_key: "minioadmin".to_string(),
             bucket_name: "sealci".to_string(),
@@ -184,7 +184,7 @@ impl Into<sealci_scheduler::config::Config> for GlobalConfig {
 impl Into<compactor::config::Config> for GlobalConfig {
     fn into(self) -> compactor::config::Config {
         compactor::config::Config {
-            image: "milou666/release-agent:test".to_string(),
+            image: "milou666/release-agent:hugo".to_string(),
             tap_interface_name: "tap0".to_string(),
             interactive: false,
             env: vec![
@@ -196,6 +196,7 @@ impl Into<compactor::config::Config> for GlobalConfig {
                 format!("BUCKET_SECRET_KEY={}", self.bucket_secret_key),
                 format!("BUCKET_NAME={}", self.bucket_name),
                 format!("BUCKET_ADDR={}", self.bucket_addr),
+                format!("GRPC=0.0.0.0:{}", &self.release_agent_port),
             ],
             transfer_files: vec![],
             mem_size_mb: 2048,
