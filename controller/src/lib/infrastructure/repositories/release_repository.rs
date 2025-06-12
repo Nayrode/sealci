@@ -30,7 +30,6 @@ impl ReleaseRepository for PostgresReleaseRepository {
         public_key: String,
         fingerprint: String,
     ) -> Result<Release, ReleaseError> {
-        info!("inserting {}", repo_url);
         let row = sqlx::query!(
             "INSERT INTO releases (repo_url, revision, path, public_key, fingerprint) VALUES ($1, $2, $3, $4, $5)
              RETURNING id, repo_url, revision, path, public_key, fingerprint",
@@ -76,5 +75,18 @@ impl ReleaseRepository for PostgresReleaseRepository {
             .collect();
 
         Ok(releases)
+    }
+
+    async fn get_key(&self, fingerprint: String) -> Result<String, ReleaseError> {
+        let rows = sqlx::query!(
+            "SELECT public_key FROM releases WHERE fingerprint = $1",
+            fingerprint
+        )
+        .fetch_one(&self.postgres.get_pool())
+        .await
+        .map_err(ReleaseError::DatabaseError)?;
+
+        let key: &str = &rows.public_key;
+        Ok(key.to_string())
     }
 }

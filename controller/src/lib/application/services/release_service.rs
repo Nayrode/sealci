@@ -72,4 +72,10 @@ where
             .list_releases(repo_url.to_string())
             .await
     }
+
+    async fn get_key(&self, fingerprint: &str) -> Result<String, ReleaseError> {
+        self.release_repository
+            .get_key(fingerprint.to_string())
+            .await
+    }
 }

@@ -13,4 +13,5 @@ pub trait ReleaseRepository: Send + Sync {
         fingerprint: String,
     ) -> Result<Release, ReleaseError>;
     async fn list_releases(&self, repo_url: String) -> Result<Vec<Release>, ReleaseError>;
+    async fn get_key(&self, fingerprint: String) -> Result<String, ReleaseError>;
 }
