@@ -1,9 +1,10 @@
+use std::fmt::Display;
 use clap::{command, Parser};
 
 /// Dumplet CLI: Export a Docker image and create an initramfs image.
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about = "Export a Docker image and create an initramfs image", long_about = None)]
-pub struct Cli {
+pub struct Config {
     #[arg(help = "Docker image name (e.g. alpine:3.14)")]
     pub image: String,
     
@@ -33,4 +34,10 @@ pub struct Cli {
 
     #[arg(long, help = "Nameserver to use for DNS resolution")]
     pub dns: Option<String>,
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Config {{ image: {:?}, tap_interface_name: {:?}, interactive: {:?}, env: {:?}, transfer_files: {:?}, mem_size_mb: {:?}, num_vcpus: {:?}, dns: {:?} }}", self.image, self.tap_interface_name, self.interactive, self.env, self.transfer_files, self.mem_size_mb, self.num_vcpus, self.dns)
+    }
 }
