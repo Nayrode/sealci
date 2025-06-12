@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use actix_web::{web::Data, App as ActixApp, HttpServer};
 
-use actix_web::dev::Server;
-use tokio::sync::RwLock;
+use actix_web::dev::{Server, ServerHandle};
+use tokio::sync::{Mutex, RwLock};
 
 use actix_cors::Cors;
 
@@ -23,8 +23,8 @@ use crate::{
 #[derive(Clone)]
 pub struct App {
     config: Arc<Config>,
-    listener_service: Arc<ListenerService>,
-    app_process: Arc<RwLock<tokio::task::JoinHandle<Result<(), Error>>>>,
+    app_process: Arc<RwLock<Vec<tokio::task::JoinHandle<Result<(), Error>>>>>,
+    server_handle: Arc<Mutex<Option<ServerHandle>>>,
 }
 
 impl sealcid_traits::App<Config> for App {
@@ -32,31 +32,21 @@ impl sealcid_traits::App<Config> for App {
 
     async fn run(&self) -> Result<(), Error> {
             let app_process = self.app_process.clone();
-            let app_clone = self.clone();
             let mut process = app_process.write().await;
-            *process = tokio::spawn(async move {
-                info!("Starting Monitor service...");
-
-                let server_result = app_clone.start().await;
-                match server_result {
-                    Ok(server) => {
-                        match server.await {
-                            Ok(_) => {
-                                info!("App started successfully");
-                            }
-                            Err(e) => {
-                                tracing::error!("Failed to run server: {:?}", e);
-                                return Err(Error::ServerError(e));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to start app: {:?}", e);
-                        return Err(e);
-                    }
+            let mut this = self.clone();
+            if !process.is_empty() {
+                info!("Monitor service is already running.");
+                return Ok(());
+            }
+            process.push(tokio::spawn(async move {
+                this.start().await?.await.expect("should be launched successfully");
+                if let Err(e) = this.start().await {
+                    tracing::error!("Failed to start Monitor service: {}", e);
                 }
+                tracing::info!("Monitor service stopped.");
                 Ok(())
-            });
+            }));
+            info!("Monitor service started successfully.{}", process.len());
             Ok(())
         }
 
@@ -66,8 +56,23 @@ impl sealcid_traits::App<Config> for App {
 
     async fn stop(&self) -> Result<(), Error> {
         let app_process = self.app_process.clone();
-        let process = app_process.read().await;
-        process.abort();
+        let handle = app_process.write().await.pop();
+        if let Some(handle) = handle {
+            if handle.is_finished() {
+                info!("Service is already finished.");
+            } else {
+                if let Some(server_handle) = self.server_handle.lock().await.as_ref() {
+                    // Attempt to stop the server gracefully
+                    server_handle.stop(false).await;
+                } else {
+                    info!("No server handle available to stop.");
+                }
+                handle.abort();
+                info!("Service abort requested.");
+            }
+        } else {
+            info!("No service to stop.");
+        }
         Ok(())
     }
 
@@ -76,14 +81,19 @@ impl sealcid_traits::App<Config> for App {
     }
 
     async fn status(&self) -> Status {
-        let app_process = self.app_process.read().await;
-        if app_process.is_finished() {
-            // Try to get the result without blocking
-            Status::Stopped
-        } else {
-            Status::Running
+            let guard = self.app_process.read().await;
+            let app_process = guard.get(0);
+            match app_process {
+                Some(handle) => {
+                    if handle.is_finished() {
+                        Status::Stopped
+                    } else {
+                        Status::Running
+                    }
+                }
+                None => Status::Stopped,
+            }
         }
-    }
 
     fn name(&self) -> String {
         "Monitor".to_string()
@@ -92,29 +102,25 @@ impl sealcid_traits::App<Config> for App {
 
 impl App {
     pub async fn init(config: Config) -> Result<Self, Error> {
+            Ok(App {
+                config: Arc::new(config),
+                app_process: Arc::new(RwLock::new(Vec::new())),
+                server_handle: Arc::new(Mutex::new(None)),
+            })
+        }
+
+    pub async fn start(&self) -> Result<Server, Error> {
+        // Initialize the application, set up routes, etc.
+        info!("Application is running...");
         let github_client = Arc::new(GitHubClient::new());
         let controller_client = Arc::new(crate::controller::ControllerClient::new(
-            config.controller_host.clone(),
+            self.config.controller_host.clone(),
         ));
         let listener_service = Arc::new(ListenerService::new(
             github_client.clone(),
             controller_client.clone(),
         ));
-        Ok(App {
-            config: Arc::new(config),
-            listener_service,
-            app_process: Arc::new(RwLock::new(tokio::task::spawn(async {
-                Ok(())
-            }))),
-        })
-    }
-
-    pub async fn start(&self) -> Result<Server, Error> {
-        // Initialize the application, set up routes, etc.
-        info!("Application is running...");
-        let listener_service = Arc::clone(&self.listener_service.clone());
-        Ok(HttpServer::new({
-
+        let server = HttpServer::new({
             move || {
                 let cors = Cors::default()
                     .allow_any_origin()
@@ -137,6 +143,9 @@ impl App {
         })
         .bind(("0.0.0.0", self.config.clone().port))
         .map_err(Error::ServerError)?
-        .run())
+        .run();
+
+        *self.server_handle.lock().await = Some(server.handle());
+        Ok(server)
     }
 }

@@ -4,12 +4,12 @@ use crate::{
     client::{config::ClientConfig, error::ClientError},
     common::proto::{
         AgentMutation, ControllerMutation, MonitorMutation, ReleaseAgentMutation,
-        SchedulerMutation, daemon_client::DaemonClient, Services, ServiceStatus
+        SchedulerMutation, daemon_client::DaemonClient, Services, ServiceStatus,
+        StatusRequest, StatusResponse,
     },
 };
 use clap::{Parser, Subcommand};
 use tonic::{Request, transport::Channel};
-use crate::common::proto::{StatusRequest, StatusResponse};
 
 const SEAL_CONFIG_DEFAULT: &str = ".seal/config";
 
@@ -213,13 +213,23 @@ impl Cli {
             }
             Commands::Start => {
                 println!("Starting configuration...");
-                // Add logic to start global configuration here
+                let request = Request::new(());
+                let _ = client
+                    .start(request)
+                    .await
+                    .map_err(ClientError::StatusError)?;
                 println!("Global configuration started successfully.");
+                return Ok(());
             }
             Commands::Stop => {
                 println!("Stopping global configuration...");
-                // Add logic to stop global configuration here
+                let request = Request::new(());
+                let _ = client
+                    .stop(request)
+                    .await
+                    .map_err(ClientError::StatusError)?;
                 println!("Global configuration stopped successfully.");
+                return Ok(());
             }
             Commands::Monitor {
                 monitor_port,

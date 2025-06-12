@@ -11,6 +11,8 @@ service Daemon {
     rpc MutateScheduler(SchedulerMutation) returns (google.protobuf.Empty);
     rpc MutateMonitor(MonitorMutation) returns (google.protobuf.Empty);
     rpc MutateController(ControllerMutation) returns (google.protobuf.Empty);
+    rpc Start(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Stop(google.protobuf.Empty) returns (google.protobuf.Empty);
     rpc Status(StatusRequest) returns (StatusResponse);
 }
 
