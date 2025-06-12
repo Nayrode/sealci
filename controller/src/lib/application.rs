@@ -29,21 +29,23 @@ pub enum AppError {
     DatabaseConnectionError(sqlx::Error),
     SchedulerConnectionError,
     GrpcConnectionError(tonic::transport::Error),
+    ReleaseConnectionError(tonic::transport::Error),
 }
 
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AppError::ParsingError(_) => write!(f, "Parsing error"),
-            AppError::CommandError(e) => write!(f, "Command error: {}", e),
-            AppError::SchedulerError(e) => write!(f, "Scheduler error: {}", e),
-            AppError::ActixWebError => write!(f, "Actix web error"),
-            AppError::Error(msg) => write!(f, "Error: {}", msg),
-            AppError::DatabaseConnectionError(error) => write!(f, "Database error: {}", error),
-            AppError::SchedulerConnectionError => write!(f, "Scheduler connection error"),
-            AppError::GrpcConnectionError(error) => write!(f, "gRPC connection error: {}", error),
+            match self {
+                AppError::ParsingError(_) => write!(f, "Parsing error"),
+                AppError::CommandError(e) => write!(f, "Command error: {}", e),
+                AppError::SchedulerError(e) => write!(f, "Scheduler error: {}", e),
+                AppError::ActixWebError => write!(f, "Actix web error"),
+                AppError::Error(msg) => write!(f, "Error: {}", msg),
+                AppError::DatabaseConnectionError(error) => write!(f, "Database error: {}", error),
+                AppError::SchedulerConnectionError => write!(f, "Scheduler connection error"),
+                AppError::GrpcConnectionError(error) => write!(f, "gRPC connection error: {}", error),
+                AppError::ReleaseConnectionError(error) => write!(f, "Release connection error: {}", error),
+            }
         }
-    }
 }
 // type Error = AppError;
 
@@ -139,7 +141,7 @@ impl App {
 
     pub async fn start(&self) -> Result<Server, AppError> {
         let config = Arc::clone(&self.config);
-        let app_context = AppContext::initialize(&config.database_url, &config.grpc).await?;
+        let app_context = AppContext::initialize(&config.database_url, &config.grpc,&self.config.release_agent).await?;
         // Start HTTP server with CORS, logging middleware, and configured routes
         let server = HttpServer::new(move || {
             // Configure CORS to allow any origin/method/header, cache preflight for 1 hour

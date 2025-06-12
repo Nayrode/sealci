@@ -2,7 +2,7 @@ use reqwest::multipart::{Form, Part};
 use reqwest::{Client, Response};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use tracing::debug;
+use tracing::{debug, info};
 
 pub struct ControllerClient {
     controller_url: String,
@@ -50,6 +50,29 @@ impl ControllerClient {
             .await?;
 
         debug!("Response: {:?}", res);
+        Ok(())
+    }
+
+    pub async fn send_release_to_controller(
+        &self,
+        repo_url: &str,
+        tag_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let client: Client = Client::new();
+
+        let release_url = format!("{}/release", self.controller_url);
+        debug!("Sending release to controller {}", release_url);
+
+        let response = client
+            .post(&release_url)
+            .json(&serde_json::json!({
+                "repo_url": repo_url,
+                "tag_name": tag_name,
+            }))
+            .send()
+            .await?;
+
+        info!("Release response: {:?}", response);
         Ok(())
     }
 }

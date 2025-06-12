@@ -160,6 +160,7 @@ impl Into<controller::config::Config> for GlobalConfig {
             http: format!("0.0.0.0:{}", self.controller_port),
             database_url: self.database_url,
             grpc: self.scheduler_host + ":" + &self.scheduler_port,
+            release_agent: self.release_agent_host + ":" + &self.release_agent_port 
         }
     }
 }

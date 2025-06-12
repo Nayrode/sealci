@@ -1,17 +1,21 @@
 use futures::lock::Mutex;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::warn;
+use tracing::error;
 
 use crate::{
-    application::AppError,
+    application::{services::release_service::ReleaseServiceImpl, AppError},
     infrastructure::{
         db::postgres::Postgres,
-        grpc::grpc_scheduler_client::GrpcSchedulerClient,
+        grpc::{
+            grpc_release_agent_client::GrpcReleaseAgentClient,
+            grpc_scheduler_client::GrpcSchedulerClient,
+        },
         repositories::{
             action_repository::PostgresActionRepository,
             command_repository::PostgresCommandRepository, log_repository::PostgresLogRepository,
             pipeline_repository::PostgresPipelineRepository,
+            release_repository::PostgresReleaseRepository,
         },
     },
 };
@@ -56,10 +60,15 @@ pub struct AppContext {
             >,
         >,
     >,
+    pub release_service: Arc<ReleaseServiceImpl<GrpcReleaseAgentClient, PostgresReleaseRepository>>,
 }
 
 impl AppContext {
-    pub async fn initialize(database_url: &str, grpc_url: &str) -> Result<Self, AppError> {
+    pub async fn initialize(
+        database_url: &str,
+        grpc_url: &str,
+        release_agent_url: &str,
+    ) -> Result<Self, AppError> {
         // Initialize Postgres connection pool using provided database URL
         let postgres = Postgres::new(database_url).await?;
         let postgres = Arc::new(postgres);
@@ -77,8 +86,30 @@ impl AppContext {
                     if retry_count >= 10 {
                         return Err(AppError::SchedulerConnectionError);
                     }
-                    warn!(
+                    error!(
                         "Failed to connect to scheduler: {}, retrying in {:?} seconds...",
+                        e, retry_delay
+                    );
+                    sleep(retry_delay).await;
+                    retry_delay *= 2;
+                    if retry_delay > Duration::from_secs(MAX_RETRY_DELAY) {
+                        retry_delay = Duration::from_secs(MAX_RETRY_DELAY);
+                    }
+                    retry_count += 1;
+                }
+            }
+        };
+        let mut retry_delay = Duration::from_secs(2);
+        let mut retry_count = 0;
+        let release_agent_grpc_client = loop {
+            match GrpcReleaseAgentClient::new(release_agent_url).await {
+                Ok(client) => break client,
+                Err(e) => {
+                    if retry_count >= 10 {
+                        return Err(AppError::SchedulerConnectionError);
+                    }
+                    error!(
+                        "Failed to connect to release agent: {}, retrying in {:?} seconds...",
                         e, retry_delay
                     );
                     sleep(retry_delay).await;
@@ -93,10 +124,13 @@ impl AppContext {
 
         // Wrap gRPC client in async Mutex for shared state
         let scheduler_client = Arc::new(Mutex::new(grpc_client));
+        let release_agent_client = Arc::new(release_agent_grpc_client);
 
         let command_repository = Arc::new(PostgresCommandRepository::new(postgres.clone()));
 
         let action_repository = Arc::new(PostgresActionRepository::new(postgres.clone()));
+
+        let release_repository = Arc::new(PostgresReleaseRepository::new(postgres.clone()));
 
         let command_service = Arc::new(CommandServiceImpl::new(command_repository));
 
@@ -111,6 +145,11 @@ impl AppContext {
             pipeline_repository.clone(),
         )));
 
+        let release_service = Arc::new(ReleaseServiceImpl::new(
+            release_agent_client,
+            release_repository,
+        ));
+
         let pipeline_service = Arc::new(PipelineServiceImpl::new(
             pipeline_repository.clone(),
             log_repository.clone(),
@@ -122,6 +161,7 @@ impl AppContext {
             pipeline_service,
             action_service,
             scheduler_service,
+            release_service,
         })
     }
 }

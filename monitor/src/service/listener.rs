@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs::File, sync::Arc};
 
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::{
     common::GitEvent, controller::ControllerClient, error::Error, event_listener::Listener,
@@ -30,6 +31,7 @@ impl ListenerService {
         on_events: Vec<GitEvent>,
         github_token: String,
     ) -> Result<Arc<Listener>, Error> {
+        info!("Listening {}/{}", repo_owner, repo_name);
         let listener = Listener::new(
             repo_owner.clone(),
             repo_name.clone(),

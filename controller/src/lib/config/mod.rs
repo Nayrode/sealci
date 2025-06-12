@@ -33,6 +33,9 @@ pub struct Config {
     ///   --grpc http://127.0.0.1:50051
     #[clap(env, long)]
     pub grpc: String,
+    
+    #[clap(env, long)]
+    pub release_agent: String,
 }
 
 impl Display for Config {

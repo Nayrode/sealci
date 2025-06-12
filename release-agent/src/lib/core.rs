@@ -42,7 +42,7 @@ pub struct PublicKey {
 
 #[async_trait]
 impl<S: ReleaseSigner, B: BucketClient, G: GitClient, C: CompressClient> ReleaseAgentCore<S,B,G,C> for ReleaseAgent<S, B, G, C> {
-        async fn create_release(&self, revision: &str, repository_url: &str) -> Result<Release, ReleaseAgentError> {
+    async fn create_release(&self, revision: &str, repository_url: &str) -> Result<Release, ReleaseAgentError> {
         //get last two parts separated by '/'
         let repo_owner = repository_url.split('/').nth_back(1).unwrap();
         let repo_name = repository_url.split('/').nth_back(0).unwrap();
@@ -70,11 +70,22 @@ impl<S: ReleaseSigner, B: BucketClient, G: GitClient, C: CompressClient> Release
 
         let release =format!("{repo_owner}/{repo_name}/{revision}");
         self.bucket
-            .put_release(release.clone(), compressed_path, signed_codebase)
+            .put_release(release.clone(), compressed_path.clone(), signed_codebase.clone())
             .await
             .inspect_err(|e| {
                 tracing::error!("Failed to upload release to bucket: {}", e);
             })?;
+
+        // clean up
+        self.compress_client.clean_compressed(compressed_path).inspect_err(|e| {
+            tracing::error!("Failed to clean up compressed file: {}", e);
+        })?;
+        self.git_client.clean_release(codebase.clone()).inspect_err(|e| {
+            tracing::error!("Failed to clean up codebase: {}", e);
+        })?;
+        self.signer.clean_release(signed_codebase).inspect_err(|e| {
+            tracing::error!("Failed to clean up signature: {}", e);
+        })?;
 
         Ok(Release {
             revision: release,
