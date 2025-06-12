@@ -8,7 +8,6 @@ use crate::application::app_context::AppContext;
 pub struct ReleaseRequest {
     pub repo_url: String,
     pub tag_name: String,
-    pub commit_sha: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -36,4 +35,4 @@ pub async fn handle_release(
             release_data.tag_name, release_data.repo_url
         ),
     })
-} 
+}

@@ -220,11 +220,7 @@ impl Listener {
 
                                 // Send release information to controller
                                 if let Err(e) = controller_client
-                                    .send_release_to_controller(
-                                        &repo_url,
-                                        &last_tag_pushed.name,
-                                        &last_tag_pushed.commit.sha,
-                                    )
+                                    .send_release_to_controller(&repo_url, &last_tag_pushed.name)
                                     .await
                                 {
                                     error!("Error sending release to controller: {}", e);
